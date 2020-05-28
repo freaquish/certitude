@@ -28,7 +28,7 @@ A normal activity can contain,
  - Selective:
     - Multiple Choice selection between Mates, Followers, Locals and Also nested Selection to Mates.
     - No Share Options.
-##People:
+## People:
   - Followers:
      - People who have seen your profile and wanted to follow you,clicked on follow.
      - 2nd Degree People
@@ -38,11 +38,11 @@ A normal activity can contain,
   - Locals:
      - People who are in the vicinity of your comfort zones.
      - 3rd Degree People.
-##Comfort Zones:
+## Comfort Zones:
    - Any Place which has most no. of activities will be asked to be included into comfort zone.
    - Comfort Zones can be manually added, at time of Writing activity, location addition will have field to add or remove the location from comfort zone.
 
-##Filters:
+## Filters:
    - Only on Images,
       - Polaroids
       - Natural
@@ -50,12 +50,12 @@ A normal activity can contain,
 Video time should be less than 15min.
 Direct inclusion of lyrics can be given through lyricsmint api, upon mood's meta data,in place of writing.
 
-#Event:
+# Event:
   - Can host live event or create  invitations of events.
   - People can perform actions all above.
   - Hosting events inlcuding Live Video.
 
-#Floating:
+# Floating:
    - Floats to mates.
    - Mates to Mates network.
    - Vicinty.
