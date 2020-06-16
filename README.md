@@ -1,63 +1,60 @@
-# Certitude
+# Insight
 
-Social Platform to share personal diary. 
-Every feed is known as activity, and a day is called journal.
-A normal activity can contain,
- - Background Image/GIF/Video called Memory.
- - 2.5min (MAX) song called mood.
- - ForeGround scrollable text called writing.
- - Access Mark as Public/Private/Selective
- - Date and Time of update
- - Location
- - Circle Avatar of user wuth username.
- - No. of views.
- - Hastags below Avatar Upto 5.
- - Icon to remove all Foregrounds, to pull  Memory to foreground.
- - Double Tap on activity will Remove/Apply Writing and Other from Background.
- - Actions:
-    - Share only if activity is public.
-    - Love,Hate,Laugh.
-    - Comment Containing Text, Emoji,Image/GIF,mood(1.5min(max))
+Social Media Platform for sharing hobbies and following hobbyist. The Platform aims to create an enviroment to nurish all hidden hobbies within a person. The Platfrom where a person could easily share their hobby and can receive feedback, without any stigma.
+
+## Features:
+### Post
+#### -datatypes:
+   -- Image/Images
+   -- Video (thumbnail + video)
+   -- Song (thumbnail + song)
+   -- Text
+     -- Custom (Person Choosen  background, font, style and colors)
+     -- TypeWriter (Template for Writing hobbies like Poetry, Quotes, Stroies, Short Stories)
+   -- Blog
+   -- Journal (A format for Diary keepers)
+     -- (Image/Video(2.5min)) + Text + song(2.5min)
+### Post Shot(How User will see post):
+ - Header:
+    -- Avatar with profile image of user (otherwise default)
+    -- username (if not choosen then name of user) beside Avatar
+    -- hobby beside username in round-square border
+    -- Rank if any in the leaderboard
+    -- Follow button 
+ - Body:
+   -- Post data-types
+   -- If song or video is in the post then, pause and mic will be added as overlay.
+   -- If Images then slider controll will be added as overlay
+ - Footer:
+   -1: Descriptive text such as art name or credits, not more than 2 lines and 120 words.
+   -2:
+   -- Love
+   -- no. of loves beside this
+   -- Comment (One depth) 
+   -- Share
+   -- Request Alliance
+   -- No of views
+   -- Message:
+      - Template: Templated messsage if not a mate
+      - Chat: if a mate
+ - Theme:
+   -- If Image then background of image.
+   -- If video/song than background of thumbnail or white
+   -- If Text or blog, choosen background or white 
  
-## Access Mark:
- - Private:
-    - Only Selected or all Mates can see the Memory.
-    - No share option.
- - Public:
-    - Mates,Followers,Locals.
- - Selective:
-    - Multiple Choice selection between Mates, Followers, Locals and Also nested Selection to Mates.
-    - No Share Options.
-## People:
-  - Followers:
-     - People who have seen your profile and wanted to follow you,clicked on follow.
-     - 2nd Degree People
-  - Mates:
-     - People who asked to trust and your trusted them, or vice-versa.
-     - 1st Degree People.
-  - Locals:
-     - People who are in the vicinity of your comfort zones.
-     - 3rd Degree People.
-## Comfort Zones:
-   - Any Place which has most no. of activities will be asked to be included into comfort zone.
-   - Comfort Zones can be manually added, at time of Writing activity, location addition will have field to add or remove the location from comfort zone.
+ ### Explore:
+   -- All the post from mates, follwings, college/school/landmark, nearby
+   -- Show on home screen to user
+ 
+### Search:
+   -- Search through descriptive text, hobby name, usernames, locations
 
-## Filters:
-   - Only on Images,
-      - Polaroids
-      - Natural
-      - Black & White
-Video time should be less than 15min.
-Direct inclusion of lyrics can be given through lyricsmint api, upon mood's meta data,in place of writing.
+ 
+ 
 
-# Event:
-  - Can host live event or create  invitations of events.
-  - People can perform actions all above.
-  - Hosting events inlcuding Live Video.
-
-# Floating:
-   - Floats to mates.
-   - Mates to Mates network.
-   - Vicinty.
-
-
+ 
+ 
+ 
+   
+   
+  
