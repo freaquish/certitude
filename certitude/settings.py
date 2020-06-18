@@ -35,6 +35,8 @@ INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
+    'rest_framework',
+    'insight.apps.InsightConfig',
     'django.contrib.messages',
     'django.contrib.staticfiles',
 ]
