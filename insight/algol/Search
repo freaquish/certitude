@@ -1,0 +1,16 @@
+Search:
+  - Post
+  - hastag
+  - nametag
+  - user
+  - hobby
+  - landmark
+  - phone_number
+  - email
+
+  - PostSearch:
+      - url: "search?q={query}"
+          - post =  Post.objects.filter(Q(hobby=q) | Q(Q(nametags__contains=[q]) | Q(hastag__contains=[q]))
+          - post_landmarked = Post.objects.filter(SearchVector(q))
+          - users = User.object.filter(Q(user_id=q) | Q(SearchVector(name)) | Q(SearchVector(username) | Q(phone_number=q) | Q(email=q) | Q(primary_hobby=q & influencer)
+

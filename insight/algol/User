@@ -1,0 +1,56 @@
+User:
+  - Model:
+      - first_name
+      - username/user_id [pk]
+      - last_name
+      - email
+      - phone_number
+      - landmarks : Array of string
+      - landmark_coords: "JSON"
+          - key: landmark
+          - value: Coords
+      - following: Array
+      - friends: Array
+      - last_login: DateTime
+      - date_joined: DateTime
+      - hobby_list: "Sorted Order (Greatest first)"
+      - requested_alliance: Array  (Requested for friendship)
+      - requesting_alliance: Array (Requesting friends)
+      - notifications: "Array"
+        - data:
+            - type:
+                - "requested_alliance"
+                - "requesting_alliance"
+                - "new-post"
+                - "commented"
+                - "reacted"
+                - "tagged"
+      - primary_hobby
+      - image
+      - influencer: True/False
+      - influence_level:
+          - 0.5: "Regional"
+          - 0.75: "Natinal"
+          - 1.0: "International"
+      - saved: Array
+      - ranks: "JSON"
+          - Key: Competition_id
+          - value:
+              - rank: "Rank"
+              - date_time: DateTime
+
+  - ViewLogs: "cassandra"
+      - user_id
+      - logs:
+          - key: Date
+          - value:
+              - post_id
+              - time
+
+  - Register:
+      - username
+      - first_name
+      - last_name
+      - email
+      - phone_number
+      - comfort_zones/landmarks

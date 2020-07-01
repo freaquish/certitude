@@ -1,0 +1,171 @@
+Post:
+  - Model:
+      - post_id: "unique id of post"
+      - description: "Text description of post -(Text,String)"
+      - hastags: "hastags in description - (List[String without-#])"
+      - nametags: "name tags in description - List[String without-@]"
+      - user_id: "User Id who posted"
+      - username: "Username of user"
+      - date_time_upload: DateTime
+      - loves: "Int"
+      - views: "Int"
+      - landmark: "String"
+      - shares: "Int"
+      - shared_views: "Int"
+      - comments_count: "Int"
+      - comments: "JSON"
+        - Key: "user_id"
+        - value:
+            - username
+            - image
+            - data
+      - share_link: "String"
+      - date_and_time: "DateTime"
+      - hobby: "hobby-code"
+      - hobby_name: "hobby-name"
+      - rank: "Int"
+      - location: "Coords"
+      - assets: "JSON"
+          - Text: "Text assets"
+              - data : "text data"
+              - journal: 1/0
+              -  style:
+                   - font-size
+                   - font
+                   - font-weight
+                   - color
+              - z_index:
+                  - 1: "Hover"
+                  - 0 : "Foreground"
+              - position:
+                  - left: float
+                  - right: float
+                  - top: float
+                  - bottom: float
+          - Images: "JSON"
+            - journal: 1/0
+            - slideshow: 1/0
+            - time: "secs"
+            - datas: "List Image"
+              - Image:
+                  - url
+          - Video: "JSON"
+              - thumbnail: "url"
+              - url
+              - journal: 1/0
+          - Song: "JSON"
+              - thumbnail: "url"
+              - url
+              - journal: 1/0
+
+  - SharePost:
+      - url: shared/<pk:user_id>/<pk:post_id>
+      - LinkShare:
+          - "When visited through this link will show one-post view"
+          - post.shared_views += 1
+          - user.interest[{post.hobby}] += 0.75
+      - EmbedShare:
+          - Through API Later release
+  - CommentPost:
+      - url: comment/
+        - post.comment_count += 1
+        - post.comments[user_id] = data
+        - user.interest[{post.hobby}] += 0.65
+      - data:
+          - user_id
+          - post_id
+          - data
+
+  - PostView:
+      - Header: "LtR"
+          - Avatar
+          - username
+          - hobby:
+          - tick: "if influencer"
+            - blue: "regional"
+            - green: "national"
+            - red: "internaional"
+          - rank (If-any)
+          - Follow
+      - Body:
+      - Footer:
+          - Love: "column"
+              - Icon
+              - love count
+          - Comment: "column"
+            - Icon
+            - Comment count
+          - Share: "column"
+            - Icon
+            - Comment count
+          - View:
+              - Icon
+              - View count
+          - Save
+          - Request alliance:
+
+  - love:
+      - url: "love/user={user_id}&post={post_id}"
+      - post.love += 1
+      - user.interest[{post.hobby}] += 0.5
+  - request_alliance:
+      - url: "alliance/<pk:post_user_id>?user={current_user_id}"
+          - add post_user.alliance_request.append(curren_user_id)
+  - follow:
+      - url: "follow/<pk:post_user_id>?user={current_user_id}"
+          - add post_user.followers.append(current_user_id)
+          - add post_user.followers_count += 1
+          - add current_user.following.append(post_user_id)
+  - save:
+      - url: "save/<pk:current_user_id>?post={post_id}"
+        - add current_user.saved.append(post_id)
+        - current_user.interest[{post.hobby}] += 0.85
+  - view:
+      - url: "post_view/<pk:current_user_id>?post={post_id}"
+        - post.views += 1
+        - add current_user.interest[{post.hobby}] += 0.25
+
+  - hashtagged:
+      - url: "hastagged_view?q={hastag-without-#}"
+          - tagged_post = Post.objects.filter(Q(hastag__contains=[data[q]]))
+          - arrange post
+          - Response:
+              - count: "Total count of post"
+              - posts: "Serialized Post"
+
+ - Feed:
+     - url: 'r_dr?anonymous=1&coords=a,b"
+       - GET: "Anonymously"
+       - Post filter most liked of all categories
+       - Rank them (nearest to landmark, highest_reactions)
+    - url: "r_dr"
+      - POST: "known"
+          - posts of friends since last login
+          - post of followes since last login
+          - post viewd by followes and friends since last login
+          - post in the landmark and city (highest_reaction) since last login
+          - journals of friends and followes
+          - Ranking:
+              - nearest hobby
+              - highest reaction
+          - weightage:
+              - love: "0.5"
+              - comment: "0.65"
+              - share: "0.75"
+              - save: "0.80"
+              - view: "0.25"
+          - formula:
+              (1 + w_l*love)*(1 + w_c*comment)*(1+w_sh*share)*(1+w_sa*save)*(1+w_v*v)/|nearest_hobby|*|now-dat_time_upload|
+          - response 5 post per page
+
+
+  - Comment: "Cassandra"
+      - post_id: "post_id"
+          - comments: "Array"
+              - data:
+                  - Key: "user_id-datetime"
+                  - value:
+                      - data: "comment-text"
+                      - date_time: DateTime
+                      - user_id: user_id
+

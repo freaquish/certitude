@@ -33,6 +33,7 @@ ALLOWED_HOSTS = []
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
+    'django.contrib.gis',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'rest_framework',
@@ -77,7 +78,7 @@ WSGI_APPLICATION = 'certitude.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
+        'ENGINE': '',
         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
     }
 }
