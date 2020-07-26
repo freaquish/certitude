@@ -35,13 +35,13 @@ class MicroActions:
         if self.account_id:
             self.user.objects.insert_coords(self.coords)
             actions = UserActionRef.objects.filter(
-                Q(Q(account_id=self.account_id & Q(Q(hobby=self.post.hobby) & Q(date_created=get_ist_data())))))
+                Q(Q(account_id=self.account_id & Q(Q(hobby=self.post.hobby) & Q(date_created=get_ist_date())))))
             action = None
             if action:
                 action = actions.first()
             else:
                 action = UserActionRef.objects.create(account_id=self.account_id, hobby=self.post.hobby,
-                                                      date_created=get_ist_data(), time_created=get_ist_time())
+                                                      date_created=get_ist_date(), time_created=get_ist_time())
             action.loves.append(self.post_id)
             action.save()
 
@@ -53,7 +53,7 @@ class MicroActions:
         if self.account_id:
             self.user.objects.insert_coords(self.coords)
             actions = UserActionRef.objects.filter(
-                Q(Q(account_id=self.account_id & Q(Q(hobby=self.post.hobby) & Q(date_created=get_ist_data())))))
+                Q(Q(account_id=self.account_id & Q(Q(hobby=self.post.hobby) & Q(date_created=get_ist_date())))))
             if actions:
                 action = actions.first()
                 action.loves.remove(self.post_id)
@@ -65,15 +65,16 @@ class MicroActions:
         self.post.score = self.score_post(anonymous=True if not self.account_id else False, weight=WEIGHT_VIEW)
         self.post.save()
         if self.account_id:
-            self.user.objects.insert_coords(self.coords)
+            self.user.objects.insert_coords(self.coords, saveData=False)
+            self.user.objects.insert_hobby_map(self.post.hobby)
             actions = UserActionRef.objects.filter(
-                Q(Q(account_id=self.account_id & Q(Q(hobby=self.post.hobby) & Q(date_created=get_ist_data())))))
+                Q(Q(account_id=self.account_id & Q(Q(hobby=self.post.hobby) & Q(date_created=get_ist_date())))))
             action = None
             if action:
                 action = actions.first()
             else:
                 action = UserActionRef.objects.create(account_id=self.account_id, hobby=self.post.hobby,
-                                                      date_created=get_ist_data(), time_created=get_ist_time())
+                                                      date_created=get_ist_date(), time_created=get_ist_time())
             action.views.append(self.post_id)
             action.save()
 
@@ -85,13 +86,13 @@ class MicroActions:
         if self.account_id:
             self.user.objects.insert_coords(self.coords)
             actions = UserActionRef.objects.filter(
-                Q(Q(account_id=self.account_id & Q(Q(hobby=self.post.hobby) & Q(date_created=get_ist_data())))))
+                Q(Q(account_id=self.account_id & Q(Q(hobby=self.post.hobby) & Q(date_created=get_ist_date())))))
             action = None
             if action:
                 action = actions.first()
             else:
                 action = UserActionRef.objects.create(account_id=self.account_id, hobby=self.post.hobby,
-                                                      date_created=get_ist_data(), time_created=get_ist_time())
+                                                      date_created=get_ist_date(), time_created=get_ist_time())
             action.shares.append(self.post_id)
             action.save()
 
@@ -104,13 +105,13 @@ class MicroActions:
         self.post.save()
         self.user.objects.insert_coords(self.coords)
         actions = UserActionRef.objects.filter(
-            Q(Q(account_id=self.account_id & Q(Q(hobby=self.post.hobby) & Q(date_created=get_ist_data())))))
+            Q(Q(account_id=self.account_id & Q(Q(hobby=self.post.hobby) & Q(date_created=get_ist_date())))))
         action = None
         if action:
             action = actions.first()
         else:
             action = UserActionRef.objects.create(account_id=self.account_id, hobby=self.post.hobby,
-                                                  date_created=get_ist_data(), time_created=get_ist_time())
+                                                  date_created=get_ist_date(), time_created=get_ist_time())
         action.saves.append(self.post_id)
         action.save()
 
@@ -122,7 +123,7 @@ class MicroActions:
         self.post.save()
         self.user.objects.insert_coords(self.coords)
         actions = UserActionRef.objects.filter(
-            Q(Q(account_id=self.account_id & Q(Q(hobby=self.post.hobby) & Q(date_created=get_ist_data())))))
+            Q(Q(account_id=self.account_id & Q(Q(hobby=self.post.hobby) & Q(date_created=get_ist_date())))))
         action = None
         if action:
             action = actions.first()

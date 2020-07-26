@@ -1,6 +1,7 @@
 .certitude/__pycache__
 .insight/migrations/__pycache__
 .insight/__pycache__
+.insight/tests/__pycache__
 db.sqlite3
 .idea
 
