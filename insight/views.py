@@ -61,7 +61,9 @@ class RegistrationView(APIView):
             assert data['first_name'] and data['last_name'] and data['account_id'] and data['password'], KeyError()
             detail: dict = {}
             id_type: str = ''
-            if '@' in data['account_id']:
+            if 'detail' in data:
+                detail = data['detail']
+            elif '@' in data['account_id']:
                 detail['email'] = data['account_id']
                 id_type = 'EMAIL'
             else:
@@ -80,7 +82,8 @@ class RegistrationView(APIView):
                 account.objects.insert_coords(json_to_coord(data['coords']))
             account.save()
 
-            return Response({'token': token.key, 'first_name': account.first_name, 'avatar': account.avatar}, status=status.HTTP_201_CREATED)
+            return Response({'token': token.key, 'first_name': account.first_name, 'avatar': account.avatar},
+                            status=status.HTTP_201_CREATED)
         except KeyError as key_error:
             print(key_error)
             return Response({"error": "Incomplete data"}, status=status.HTTP_406_NOT_ACCEPTABLE)
