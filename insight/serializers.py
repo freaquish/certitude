@@ -17,12 +17,22 @@ class PostSerializer:
             renderd.append(self.serialize())
         return renderd
 
+    def render_with_action(self, actions):
+        renderd =[]
+        for post in self.posts:
+            self.post = post
+            serialized = self.serialize()
+            serialized['meta']['action'] = actions[self.post.post_id]
+            renderd.append(serialized)
+        return renderd
+
     def serialize(self, *delete_keys):
         user: Account = Account.object.get(account_id=self.post.account_id)
         data = {'header': {}, 'body': {}, 'caption': {}, 'footer': {}, 'meta': {}, 'post_id': self.post.post_id}
         data['meta']['score'] = self.post.score
         data['meta']['created'] = f'{((get_ist() - self.post.created_at).seconds / 3600)}h'
         data['meta']['editor'] = self.post.editor
+        data['meta']['account_id'] = self.user.account_id
         data['header']['avatar'] = self.post.avatar
         data['header']['username'] = self.post.username
         data['header']['hobby_name'] = self.post.hobby_name
@@ -49,7 +59,7 @@ class ProfileSerializer(ModelSerializer):
         model = Account
         fields = ('account_id', 'avatar', 'first_name', 'last_name', 'username',
                   'influencer', 'hobby_map', 'follower_count', 'following_count', 'friend_count',
-                  'description'
+                  'description','places'
                   )
 
 
@@ -57,3 +67,25 @@ class ExplorePostSerializer(ModelSerializer):
     class Meta:
         model = Post
         fields = ('post_id', 'assets', 'captions', 'score', 'hobby', 'hobby_name', 'created_at', 'editor')
+
+
+class ActionStoreSerializer:
+
+    def __init__(self, actions):
+        self.actions = actions
+
+    @staticmethod
+    def _render(action: ActionStore):
+        return {
+            "viewed": 1 if action.viewed else 0,
+            "loved": 1 if action.loved else 0,
+            "shared": 1 if action.shared else 0,
+            "saved": 1 if action.saved else 0,
+        }
+
+    def data(self):
+        json = {}
+        for action in self.actions:
+            json[action.post_id] = self._render(action)
+        return json
+

@@ -136,8 +136,6 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            managers=[
-                ('objects', insight.models.AccountManager()),
-            ],
+
         ),
     ]

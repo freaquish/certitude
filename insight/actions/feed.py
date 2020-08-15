@@ -2,7 +2,7 @@ from django.db.models.fields import DecimalField
 from insight.utils import get_ist_date
 from django.db.models import F, Q
 import datetime
-from insight.models import Account, Post, UserActionRef, Hobby
+from insight.models import Account, Post, UserActionRef, Hobby, ActionStore
 
 
 class Feed:
@@ -48,27 +48,20 @@ class Feed:
             else:
                 query = query | Q(account_id=follow)
 
-        # Retreive all the actions within 4 days
-        actions = UserActionRef.objects.filter(Q(account_id=self.account.account_id) & Q(date_created__gte=buffer_date))
-        views = []
-        for action in actions:
-            views = views + action.views
-
-        # Making sure no viewed post should come up
-        viewed_query = None
-        for viewed_post in views:
-            if not viewed_query:
-                viewed_query = ~Q(post_id=viewed_post)
-            else:
-                viewed_query = viewed_query | ~Q(post_id=viewed_post)
-
         # Adding all the queries
-        final_query: Q = Q(query & hobby_query & viewed_query)
-        posts = Post.objects.filter(final_query).annotate(
+        final_query: Q = Q(query & hobby_query)
+        posts = Post.objects.filter(Q(final_query) & Q(created_at__gte=buffer_date)).annotate(
             feed_weight=DecimalField(F('score')*10 + ((1 + (F('hobby_weight') - self.account.primary_weight)
                                                        ) * (hobby_map[F('hobby')] if F('hobby') in hobby_map else 1))
                                      )).order_by('-created_at', 'feed_weight',)
-        return posts
+        action_query = None
+        for post in posts:
+            if not action_query:
+                action_query = Q(post_id=post.post_id)
+            else:
+                action_query = action_query | Q(post_id=post.post_id)
+        actions = ActionStore.objects.filter(Q(account_id=self.account.account_id) & action_query)
+        return posts,actions
 
     @staticmethod
     def feed_anonymous():

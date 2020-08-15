@@ -1,14 +1,15 @@
-from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.authentication import TokenAuthentication
+from rest_framework.authtoken.models import Token
+
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
-from django.db.models import QuerySet, Q
+from django.db.models import QuerySet
 from insight.actions.notification_actions import *
 
-from insight.actions.post_actions import save_micro_action, comment_micro_action, subsiquent_micro_actions
+from insight.actions.post_actions import authenticated_mirco_actions, general_micro_actions
 
 from insight.models import *
 from insight.actions.search import Search
@@ -25,7 +26,8 @@ class LoginView(APIView):
 
     def post(self, request):
         data: dict = json.loads(request.body)
-        account: QuerySet = Account.objects.filter(account_id=data['account_id'])
+        account: QuerySet = Account.objects.filter(
+            account_id=data['account_id'])
         if not account:
             return Response({'error': 'No Account Found'}, status=status.HTTP_404_NOT_FOUND)
         account: Account = account.first()
@@ -34,7 +36,8 @@ class LoginView(APIView):
         token: Token = Token.objects.get(user=account)
         if 'coords' in data.keys():
             account.objects.insert_coords(json_to_coord(data['coords']))
-        return Response({'token': token.key, 'first_name': account.first_name, 'avatar': account.avatar}, status=status.HTTP_202_ACCEPTED)
+        return Response({'token': token.key, 'first_name': account.first_name, 'avatar': account.avatar},
+                        status=status.HTTP_202_ACCEPTED)
 
 
 @api_view(['GET'])
@@ -42,7 +45,7 @@ class LoginView(APIView):
 def username_available(request):
     result = False
     username = request.GET['username']
-    if len(username) >= 6 and not ('@' in username and '#' in username and '$' in username):
+    if len(username) >= 6 and not ('#' in username and '$' in username and '@' in username):
         accounts = Account.objects.filter(username=username)
         if not accounts:
             return Response({'available': 1}, status=status.HTTP_200_OK)
@@ -59,29 +62,19 @@ class RegistrationView(APIView):
         data: dict = json.loads(request.body)
         try:
             assert data['first_name'] and data['last_name'] and data['account_id'] and data['password'], KeyError()
-            detail: dict = {}
-            id_type: str = ''
-            if 'detail' in data:
-                detail = data['detail']
-            elif '@' in data['account_id']:
-                detail['email'] = data['account_id']
-                id_type = 'EMAIL'
-            else:
-                detail['phone_number'] = data['account_id']
-                id_type = 'PHONE'
-
-            accounts = Account.objects.filter(account_id=data['account_id'])
+            id_type: str = 'PHONE'
+            accounts = Account.objects.filter(Q(account_id=data['account_id']))
             if accounts:
                 return Response({}, status=status.HTTP_403_FORBIDDEN)
-            account, token = Account.objects.create_user_account(data['account_id'], id_type, data['password'])
-            account.first_name = data['first_name']
-            account.last_name = data['last_name']
-            account.username = data['username']
-            account.details = detail
+            password = data['password']
+            del data['password']
+            account = Account.objects.create(**data)
+            account.set_password(password)
+            account.is_active = True
             if 'coords' in data.keys():
-                account.objects.insert_coords(json_to_coord(data['coords']))
+                account.insert_coords(json_to_coord(data['coords']))
             account.save()
-
+            token = Token.objects.create(user=account)
             return Response({'token': token.key, 'first_name': account.first_name, 'avatar': account.avatar},
                             status=status.HTTP_201_CREATED)
         except KeyError as key_error:
@@ -103,7 +96,8 @@ class ResetPassword(APIView):
             account.objects.insert_coords(json_to_coord(data['coords']))
         account.save()
         token = Token.objects.get(user=account)
-        return Response({'token': token.key, 'first_name': account.first_name, 'avatar': account.avatar}, status=status.HTTP_202_ACCEPTED)
+        return Response({'token': token.key, 'first_name': account.first_name, 'avatar': account.avatar},
+                        status=status.HTTP_202_ACCEPTED)
 
 
 class SharedPost(APIView):
@@ -124,6 +118,9 @@ class CreateHobby(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        user: Account = Token.objects.get(key=request.META.get('HTTP_AUTHORIZATION')).user
+        if not (user.is_staff and user.is_superuser):
+            return Response({}, status=status.HTTP_401_UNAUTHORIZED)
         data: dict = json.loads(request.body)
         hobby = Hobby.objects.get_or_create(code_name=data['code_name'])[0]
         hobby.name = data['name']
@@ -170,10 +167,26 @@ class CreatePost(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
+    def verify_token(self):
+        if 'HTTP_AUTHORIZATION' in self.request.META:
+            token_key = self.request.META.get('HTTP_AUTHORIZATION')
+            token_key = "".join(token_key.split('Token ')
+                                ) if 'Token' in token_key else token_key
+            token = Token.objects.filter(key=token_key)
+            self.feed = Feed(token.user)
+            self.user: Account = token.user
+            self.valid_user = True
+        else:
+            self.feed = Feed()
+            self.valid_user = False
+
     def post(self, request):
         data: dict = json.loads(request.body)
         try:
-            account = Account.objects.get(account_id=data['uid'])
+            self.verify_token()
+            if not self.valid_user:
+                return Response({}, status=status.HTTP_403_FORBIDDEN)
+            account = self.user
             is_coord_present = False
             if 'coords' in data:
                 is_coord_present = True
@@ -193,8 +206,10 @@ class CreatePost(APIView):
                 editor=data['editor'],
                 hastags=data['hastags'],
                 atags=data['atags'],
-                coords=json_to_coord(data['coords']) if is_coord_present else account.current_coord,
-                action_count={'love': 0, 'view': 0, 'share': 0, 'save': 0, 'comment': 0},
+                coords=json_to_coord(
+                    data['coords']) if is_coord_present else account.current_coord,
+                action_count={'love': 0, 'view': 0,
+                              'share': 0, 'save': 0, 'comment': 0},
                 created_at=get_ist(),
                 rank=0,
                 score=0.0,
@@ -212,48 +227,39 @@ class CreatePost(APIView):
             tags_present_length = len(tags_present)
             if tag_query_length - tags_present_length > 0:
                 present_tag_names = [tag.tag for tag in tags_present]
-                not_present_tags = filter(lambda tag: tag not in present_tag_names, all_tags)
+                not_present_tags = filter(
+                    lambda tag: tag not in present_tag_names, all_tags)
                 tags = Tags.objects.bulk_create(
                     [Tags(tag=tag_name, created_at=get_ist(), first_used=post.post_id) for tag_name in
                      not_present_tags])
             # Notify all followers and friends that new post has arrived
-            notify = notify_about_new_post.delay(post.post_id, post.hobby_name, post.account_id)
+            notify = notify_about_new_post.delay(
+                post.post_id, post.hobby_name, post.account_id)
             return Response({"msg": "successful"}, status=status.HTTP_201_CREATED)
         except Exception as exception:
             return Response({"msg": "Post Creation Failed. Try again later"}, status=status.HTTP_400_BAD_REQUEST)
-
-
-class AuthenticatedMicroActionView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        # ?pid={str}, coord_x={float}, coord_y={float}
-        # Nature to be Non-Interruptive
-        data: dict = request.GET
-        token: str = request.META.get('HTTP_AUTHORIZATION')
-        if data['action'] == 'save' or data['action'] == 'un_save':
-            save_micro_action.delay(data, token, save=False if data['action'] == 'un_save' else True)
-        else:
-            subsiquent_micro_actions.delay(data['action'], data, token_str=token)
-        return Response({}, status=status.HTTP_200_OK)
-
-    def post(self, request):
-        data: dict = json.loads(request.body)
-        token: str = request.META.get('HTTP_AUTHORIZATION')
-        comment_micro_action.delay(data, token)
-        return Response({}, status=status.HTTP_202_ACCEPTED)
 
 
 class GeneralMicroActionView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        # ?pid={str}
-        # Nature to be Non-Interruptive
-        data: dict = request.GET
-        token: str = request.META.get('HTTP_AUTHORIZATION')
-        subsiquent_micro_actions.delay(data['action'], data, token_str=token)
+        token = None
+        if 'HTTP_AUTHORIZATION' in request.META:
+            token = request.META.get('HTTP_AUTHORIZATION')
+            authenticated_mirco_actions.delay(
+                {"action": request.GET['action'], "pid": request.GET['pid']}, token)
+        else:
+            general_micro_actions.delay(request.GET)
+        return Response({}, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        data = json.loads(request.body)
+        token = None
+        if 'HTTP_AUTHORIZATION' in request.META:
+            token = request.META.get('HTTP_AUTHORIZATION')
+            authenticated_mirco_actions.delay(
+                {"action": data['action'], "pid": data['pid'], 'comment': data['comment']}, token, req_type='POST')
         return Response({}, status=status.HTTP_200_OK)
 
 
@@ -265,7 +271,8 @@ class MicroNotificationActions(APIView):
         # ? rid={requested_id: person to be requested}, uid={requesting_id: person who is requesting}
         data: dict = request.GET
         action = data['action']
-        noti_actions = NotificationActions(requested_id=data['rid'], requesting_id=data['uid'])
+        noti_actions = NotificationActions(
+            requested_id=data['rid'], requesting_id=data['uid'])
         if action == NOTIFICATION_FRIEND_REQUEST:
             noti_actions.send_friend_request()
         elif action == NOTIFICATION_FRIEND_RESPONSE:
@@ -296,7 +303,8 @@ class SearchView(APIView):
         token = None
         if 'HTTP_AUTHORIZATION' in self.request.META:
             token_key = self.request.META.get('HTTP_AUTHORIZATION')
-            token_key = "".join(token_key.split('Token ')) if 'Token' in token_key else token_key
+            token_key = "".join(token_key.split('Token ')
+                                ) if 'Token' in token_key else token_key
             token = Token.objects.filter(key=token_key)
 
         if token:
@@ -318,8 +326,9 @@ class SearchView(APIView):
                                 'friend': 1 if self.account and self.account.account_id in account.friend else 0
                                 } for account in accounts]
         serialized_tags = [tag.tag for tag in tags]
-        serialized_hobby = [{'name': hobby.name, 'code_name': hobby.code_name } for hobby in hobbies]
-        return Response({'tags': serialized_tags, 'hobby': serialized_hobby, 'accounts': serialized_accounts},
+        serialized_hobby = [
+            {'name': hobby.name, 'code_name': hobby.code_name} for hobby in hobbies]
+        return Response({'tags': serialized_tags, 'hobbies': serialized_hobby, 'accounts': serialized_accounts},
                         status=status.HTTP_200_OK)
 
 
@@ -329,7 +338,8 @@ class ExploreView(APIView):
     def verify_token(self):
         if 'HTTP_AUTHORIZATION' in self.request.META:
             token_key = self.request.META.get('HTTP_AUTHORIZATION')
-            token_key = "".join(token_key.split('Token ')) if 'Token' in token_key else token_key
+            token_key = "".join(token_key.split('Token ')
+                                ) if 'Token' in token_key else token_key
             token = Token.objects.filter(key=token_key)
             self.explorer = Explorer(token.user)
             self.valid_user = True
@@ -344,13 +354,16 @@ class ExploreView(APIView):
             data = self.request.GET
             if 'hobby' in data:
                 posts = self.explorer.filter_hobby(data['hobby'])
-                serialized_posts = [self.explorer.serialize_post(post) for post in posts]
+                serialized_posts = [
+                    self.explorer.serialize_post(post) for post in posts]
                 return Response({"posts": serialized_posts}, status=status.HTTP_200_OK)
             else:
-                serialized_posts = [self.explorer.serialize_post(post) for post in self.explorer.explore_known()]
+                serialized_posts = [self.explorer.serialize_post(
+                    post) for post in self.explorer.explore_known()]
                 return Response({"posts": serialized_posts}, status=status.HTTP_200_OK)
         else:
-            serialized_posts = [self.explorer.serialize_post(post) for post in self.explorer.explore_anonymous()]
+            serialized_posts = [self.explorer.serialize_post(
+                post) for post in self.explorer.explore_anonymous()]
             return Response({"posts": serialized_posts}, status=status.HTTP_200_OK)
 
 
@@ -361,6 +374,7 @@ class OnePostView(APIView):
        mapped to url /post/<pk:post>
        will find the post and comment data and sent to user 
     """
+
     def get(self, request, pk):
         post = Post.objects.filter(post_id=pk)
         if post:
@@ -383,7 +397,7 @@ class OnePostView(APIView):
                     "comments": comment.comments
                 },
                 "meta": {
-                    "created": f'{((get_ist() - self.post.created_at).seconds / 3600)}h',
+                    "created": f'{((get_ist() - post.created_at).seconds / 3600)}h',
                     "score": post.score,
                     "editor": post.editor
                 }
@@ -399,21 +413,24 @@ class FeedView(APIView):
     def verify_token(self):
         if 'HTTP_AUTHORIZATION' in self.request.META:
             token_key = self.request.META.get('HTTP_AUTHORIZATION')
-            token_key = "".join(token_key.split('Token ')) if 'Token' in token_key else token_key
-            token = Token.objects.filter(key=token_key)
+            token_key = "".join(token_key.split('Token ')
+                                ) if 'Token' in token_key else token_key
+            token = Token.objects.get(key=token_key)
             self.feed = Feed(token.user)
             self.user: Account = token.user
             self.valid_user = True
         else:
-            self.feed =Feed()
+            self.feed = Feed()
             self.valid_user = False
 
     def get(self, request):
         self.request = request
         self.verify_token()
         if self.valid_user:
-            posts = self.feed.extract_feed_known()
-            serialized = PostSerializer(posts).render()
+            posts, actions = self.feed.extract_feed_known()
+            serialized_actions = ActionStoreSerializer(actions).data()
+            serialized = PostSerializer(
+                posts).render_with_action(serialized_actions)
             return Response({'posts': serialized,
                              'meta': {'avatar': self.user.avatar, 'first_name': self.user.first_name},
                              'notification': 1 if self.user.new_notification else 0}, status=status.HTTP_200_OK)
@@ -428,7 +445,7 @@ class OneLinkView(APIView):
 
     def get(self, request, iden: str):
         delim = ''
-        d_type=''
+        d_type = ''
         query = None
         if 'h__' in iden:
             delim = iden.replace('h__', '', 1)
@@ -443,7 +460,8 @@ class OneLinkView(APIView):
             d_type = 'hobby'
             query = Q(hobby=delim)
         posts = Post.objects.filter(query).order_by('score', '-created_at')
-        serialized_posts = [{"post_id": post.id, "hobby": post.hobby, "assets": post.assets, "editor": post.editor} for post in posts]
+        serialized_posts = [{"post_id": post.id, "hobby": post.hobby,
+                             "assets": post.assets, "editor": post.editor} for post in posts]
         return Response({'title': delim, 'type': d_type, 'posts': serialized_posts}, status=status.HTTP_200_OK)
 
 
@@ -453,22 +471,28 @@ class ThirdPartyProfileView(APIView):
     def verify_token(self):
         if 'HTTP_AUTHORIZATION' in self.request.META:
             token_key = self.request.META.get('HTTP_AUTHORIZATION')
-            token_key = "".join(token_key.split('Token ')) if 'Token' in token_key else token_key
-            token = Token.objects.filter(key=token_key)
+            if 'Token' in token_key:
+                token_key = "".join(token_key.split('Token '))
+            token = Token.objects.get(key=token_key)
             self.user: Account = token.user
             self.valid_user = True
         else:
             self.valid_user = False
 
-    def get(self, request, accnt: str):
-        accounts: QuerySet = Account.objects.filter(account_id=accnt)
+    def get(self, request, username: str):
+        self.request = request
+        self.verify_token()
+        accounts: QuerySet = Account.objects.filter(username=username)
         if accounts:
             account: Account = accounts.first()
             serialized = ProfileSerializer(account).data
-            following = account.account_id in self.user.following
-            friends = account.account_id in self.user.friend
-            serialized['following'] = 1 if following else 0
-            serialized['friend'] = 1 if friends else 0
+            following = 0
+            friends = 0 
+            if self.valid_user:
+                following = 1 if account.account_id in self.user.following else 0
+                friends = 1 if account.account_id in self.user.friend else 0
+            serialized['following'] = following 
+            serialized['friend'] = friends 
             return Response(serialized, status=status.HTTP_200_OK)
         return Response({}, status=status.HTTP_404_NOT_FOUND)
 
@@ -480,7 +504,8 @@ class ProfileView(APIView):
     @staticmethod
     def verify_token(request):
         token_key: str = request.META.get('HTTP_AUTHORIZATION')
-        token: str = "".join(token_key.split('Token ')) if 'Token' in token_key else token_key
+        token: str = "".join(token_key.split('Token ')
+                             ) if 'Token' in token_key else token_key
         token_objs: QuerySet = Token.objects.filter(key=token)
         if not token_objs:
             return None
@@ -490,9 +515,10 @@ class ProfileView(APIView):
     def get(self, request):
         user = self.verify_token(request)
         if not user:
-            return  Response({}, status=status.HTTP_404_NOT_FOUND)
+            return Response({}, status=status.HTTP_404_NOT_FOUND)
         posts = Post.objects.filter(account_id=user.account_id)
-        serialized_posts = [{"post_id": post.id, "hobby": post.hobby, "assets": post.assets, "editor": post.editor} for post in posts]
+        serialized_posts = [{"post_id": post.id, "hobby": post.hobby,
+                             "assets": post.assets, "editor": post.editor} for post in posts]
         serialized_account = ProfileSerializer(user).data
         serialized_account['posts'] = serialized_posts
         return Response(serialized_account, status=status.HTTP_200_OK)
@@ -505,18 +531,24 @@ class ProfileView(APIView):
         if 'coords' in data:
             coords = data['coords']
             del data['coords']
-            user.objects.insert_coords(json_to_coord(coords))
+            user.__class__.objects.insert_coords(json_to_coord(coords))
+        if 'places' in data:
+            place_list = []
+            for place in data['places']:
+                place_list.append(Places(place_name=place[0], city=place[1]))
+                user.places.append(f'{place[0]},{place[1]}')
+            Places.objects.bulk_create(place_list)
+            del data['places']
         try:
-            user.objects.update(data)
+            print(data)
+            user.__dict__.update(**data)  #using stone way because object.update isn't working
+            user.save()
         except Exception as e:
             return Response({}, status=status.HTTP_400_BAD_REQUEST)
+
         posts = Post.objects.filter(account_id=user.account_id)
         serialized_posts = [{"post_id": post.id, "hobby": post.hobby, "assets": post.assets, "editor": post.editor} for
                             post in posts]
         serialized_account = ProfileSerializer(user).data
         serialized_account['posts'] = serialized_posts
         return Response(serialized_account, status=status.HTTP_202_ACCEPTED)
-
-
-
-
