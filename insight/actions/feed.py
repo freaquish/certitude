@@ -67,6 +67,7 @@ class Feed:
         if action_query:
             final_query = final_query & action_query
         actions = ActionStore.objects.filter(final_query)
+        # print(actions)
         return posts,actions
 
     @staticmethod

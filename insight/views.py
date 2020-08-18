@@ -26,11 +26,11 @@ class LoginView(APIView):
 
     def post(self, request):
         data: dict = json.loads(request.body)
-        account: QuerySet = Account.objects.filter(
+        accounts: QuerySet = Account.objects.filter(
             account_id=data['account_id'])
-        if not account:
+        if not accounts:
             return Response({'error': 'No Account Found'}, status=status.HTTP_404_NOT_FOUND)
-        account: Account = account.first()
+        account: Account = accounts.first()
         if not account.check_password(data['password']):
             return Response({"error": "Invalid Credentials"}, status=status.HTTP_401_UNAUTHORIZED)
         token: Token = Token.objects.get(user=account)
@@ -455,6 +455,7 @@ class FeedView(APIView):
             token_key = self.request.META.get('HTTP_AUTHORIZATION')
             token_key = "".join(token_key.split('Token ')
                                 ) if 'Token' in token_key else token_key
+            # print(token_key)
             token = Token.objects.get(key=token_key)
             self.feed = Feed(token.user)
             self.user: Account = token.user

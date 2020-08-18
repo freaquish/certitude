@@ -14,7 +14,9 @@ class PostSerializer:
         renderd = []
         for post in self.posts:
             self.post = post
-            renderd.append(self.serialize())
+            user = Account.objects.filter(account_id=self.post.account_id)
+            if user:
+                renderd.append(self.serialize(user.first()))
         return renderd
 
     def render_with_action(self, actions):
@@ -23,16 +25,17 @@ class PostSerializer:
             return renderd
         for post in self.posts:
             self.post = post
-            serialized = self.serialize()
-            if len(actions) > 0 and self.post.post_id in actions:
-                serialized['meta']['actions'] = actions[self.post.post_id]
-            else:
-                serialized['meta']['actions'] = {'loved':0,'shared':0,'saved':0,'viewed':0}
-            renderd.append(serialized)
+            user = Account.objects.filter(account_id=self.post.account_id)
+            if user:
+                serialized = self.serialize()
+                if len(actions) > 0 and self.post.post_id in actions:
+                    serialized['meta']['actions'] = actions[self.post.post_id]
+                else:
+                    serialized['meta']['actions'] = {'loved':0,'shared':0,'saved':0,'viewed':0}
+                renderd.append(serialized)
         return renderd
 
-    def serialize(self, *delete_keys):
-        user = Account.objects.get(account_id=self.post.account_id)
+    def serialize(self,user, *delete_keys):
         data = {'header': {}, 'body': {}, 'caption': {}, 'footer': {}, 'meta': {}, 'post_id': self.post.post_id}
         data['meta']['score'] = self.post.score
         data['meta']['created'] = f'{((get_ist() - self.post.created_at).seconds / 3600)}h'
