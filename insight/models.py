@@ -99,7 +99,7 @@ class Account(AbstractBaseUser, PermissionsMixin):
             self.save()
 
 class Hobby(models.Model):
-    code_name = models.CharField(max_length=20, default='', primary_key=True)
+    code_name = models.CharField(max_length=30, default='', primary_key=True)
     name = models.CharField(max_length=40, default='')
     editors = ArrayField(models.CharField(max_length=30), default=list)
     limits = JSONField(default=dict)
@@ -107,19 +107,19 @@ class Hobby(models.Model):
 
 
 class Post(models.Model):
-    post_id = models.CharField(max_length=15, primary_key=True, default='')
+    post_id = models.CharField(max_length=22, primary_key=True, default='')
     username = models.CharField(max_length=30, default='')
     account_id = models.CharField(max_length=50)
     avatar = models.TextField()
-    editor = models.CharField(max_length=10)
-    hobby = models.CharField(max_length=20, default='')
-    hobby_name = models.CharField(max_length=30, default='')
+    editor = models.CharField(max_length=14)
+    hobby = models.CharField(max_length=30, default='')
+    hobby_name = models.CharField(max_length=40, default='')
     hobby_weight = models.DecimalField(max_digits=4, decimal_places=2, default=0.00)
     assets = JSONField(default=dict)
     caption = models.TextField()
     hastags = ArrayField(models.CharField(max_length=20), default=list)
     atags = ArrayField(models.CharField(max_length=20), default=list)
-    coords = gis_models.PointField(Point(0, 0, srid=4326), srid=4326)
+    coords = gis_models.PointField(Point(0, 0, srid=4326), srid=4326, blank=True,null=True)
     action_count = JSONField(default=dict)
     created_at = models.DateTimeField(default=get_ist())
     rank = models.IntegerField(default=0)
@@ -141,11 +141,11 @@ class UserActionRef(models.Model):
 
 class ActionStore(models.Model):
     account_id = models.CharField(max_length=50, db_index=True, default='')
-    post_id = models.CharField(max_length=15, db_index=True, default='')
+    post_id = models.CharField(max_length=25, db_index=True, default='')
     loved = models.BooleanField(default=False)
     loved_at = models.DateTimeField(default=get_ist())
     viewed = models.BooleanField(default=False)
-    viewed_at = models.DateField(default=get_ist())
+    viewed_at = models.DateTimeField(default=get_ist())
     shared = models.BooleanField(default=False)
     saved = models.BooleanField(default=False)
     commented = models.BooleanField(default=True)
@@ -184,6 +184,3 @@ class Tags(models.Model):
 class Places(models.Model):
     place_name = models.TextField()
     city = models.TextField()
-
-
-        

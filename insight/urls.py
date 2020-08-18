@@ -19,4 +19,6 @@ urlpatterns = [
     path('feed', FeedView.as_view()),
     path('profile/third/<str:username>', ThirdPartyProfileView.as_view()),
     path('profile', ProfileView.as_view()),
+    path('profile/associate',ManageAssociation.as_view()),
+    path('post_comment', PostCommentView.as_view())
 ]

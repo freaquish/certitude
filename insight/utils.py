@@ -42,7 +42,5 @@ def get_ist_date():
     return get_ist().date()
 
 
-def post_ig_generator():
-    return f'{token_urlsafe(8)}{token_urlsafe(4)}'
-
-
+def post_id_generator():
+    return f'{token_urlsafe(16)}'

@@ -13,7 +13,7 @@ from django.db.models import Q, QuerySet
  The meta score will be updated instantly after the action is fired.
 """
 
-WEIGHT_VIEW: float = 0.35
+WEIGHT_VIEW: float = 0.25
 WEIGHT_LOVE: float = 0.50
 WEIGHT_COMMENT: float = 0.65
 WEIGHT_SAVE: float = 0.80
@@ -34,7 +34,10 @@ class MicroActions:
     def score_post(self,weight=0.0):
         if self.anonymous:
             return self.post.score + weight
-        primary_hobby_weight: float = float(Hobby.objects.get(code_name=self.user.primary_hobby).weight)
+        if self.user.primary_hobby:
+            primary_hobby_weight: float = float(Hobby.objects.get(code_name=self.user.primary_hobby).weight)
+        else:
+            primary_hobby_weight = 0.0
         post_hobby_weight: float = float(Hobby.objects.get(code_name=self.post.hobby).weight)
         multiplier: float = float(
             self.user.hobby_map[self.post.hobby] if self.post.hobby in self.user.hobby_map else 1)
@@ -54,7 +57,10 @@ class MicroActions:
        if self.user and not self.anonymous:
            action_store, created = ActionStore.objects.get_or_create(post_id=self.post.post_id,
                                                                      account_id=self.user.account_id)
-           action_store.objects.update(**action)
+           if 'viewed' in action and action_store.viewed and (get_ist() - action_store.viewed_at).seconds < 300:
+               pass
+           else:
+               action_store.__class__.objects.update(**action)
 
     def commented(self, value):
         if self.user:
@@ -68,10 +74,24 @@ class MicroActions:
             comment.save()
             self.commit_action(commented=True)
 
+    @staticmethod
+    def follow_user(followee: Account, follower: Account):
+        if follwer.following:
+            follower.following.append(followee.account_id)
+            follower.following_count += 1
+        else:
+            follower.following = [followee.account_id]
+            follower.following = 1
+        followee.follower_count  = followee.follower_count + 1 if followee.follower_count else 1
+        follower.save()
+        followee.save()
+
+
+
     def micro_actions(self, action, val=''):
         weight = 0.0
         if action == "love":
-            self.commit_action(loved=True)
+            self.commit_action(loved=True,loved_at=get_ist())
             weight = WEIGHT_LOVE
         elif action == "un_love":
             self.commit_action(loved=False)
@@ -80,7 +100,7 @@ class MicroActions:
             self.commit_action(shared=True)
             weight = WEIGHT_SHARE
         elif action == "view":
-            self.commit_action(viewed=True)
+            self.commit_action(viewed=True,viewed_at=get_ist())
             weight = WEIGHT_VIEW
         elif action == "save":
             self.commit_action(saved=True)
@@ -106,10 +126,12 @@ class MicroActions:
 def authenticated_mirco_actions(GET,token,req_type='GET'):
     if token:
         token = "".join(token.split('Token ')) if 'Token' in token else token
-        accounts: QuerySet = Token.objects.filter(key=token)
-        if not accounts:
+        tokens: QuerySet = Token.objects.filter(key=token)
+        if not tokens:
             return None
-        account: Account = accounts.first()
+        token = tokens.first()
+        account: Account = token.user
+        print(type(account))
         data = {}
         if req_type == "POST":
             data = json.load(GET)
@@ -121,6 +143,20 @@ def authenticated_mirco_actions(GET,token,req_type='GET'):
     else:
         return None
 
+@shared_task
+def authenticated_association(token,fid, follow=True):
+    tk = "".join(token.split('Token ')) if 'Token' in token else token
+    tokens: QuerySet = Token.objects.filter(key=tk)
+    if not tokens:
+        return None
+    token = tokens.first()
+    user: Account = token.user
+    followes: QuerySet = Account.objects.filter(account_id=fid)
+    if not followes:
+        return None
+    if follow:
+        MicroActions.follow_user(followes.first(),user)
+    return None
 
 @shared_task
 def general_micro_actions(get):
@@ -128,4 +164,3 @@ def general_micro_actions(get):
     micro_action = MicroActions(data['pid'])
     micro_action.micro_actions(data['action'])
     return None
-

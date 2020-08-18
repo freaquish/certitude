@@ -9,7 +9,7 @@ from rest_framework import status
 from django.db.models import QuerySet
 from insight.actions.notification_actions import *
 
-from insight.actions.post_actions import authenticated_mirco_actions, general_micro_actions
+from insight.actions.post_actions import authenticated_mirco_actions, general_micro_actions, authenticated_association
 
 from insight.models import *
 from insight.actions.search import Search
@@ -118,6 +118,8 @@ class CreateHobby(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        if not 'HTTP_AUTHORIZATION' in request.META:
+            return Response({}, status=status.HTTP_403_FORBIDDEN)
         user: Account = Token.objects.get(key=request.META.get('HTTP_AUTHORIZATION')).user
         if not (user.is_staff and user.is_superuser):
             return Response({}, status=status.HTTP_401_UNAUTHORIZED)
@@ -173,11 +175,13 @@ class CreatePost(APIView):
             token_key = "".join(token_key.split('Token ')
                                 ) if 'Token' in token_key else token_key
             token = Token.objects.filter(key=token_key)
-            self.feed = Feed(token.user)
-            self.user: Account = token.user
-            self.valid_user = True
+            if token:
+                token = token.first()
+                self.user: Account = token.user
+                self.valid_user = True
+            else:
+                self.valid_user = False
         else:
-            self.feed = Feed()
             self.valid_user = False
 
     def post(self, request):
@@ -193,50 +197,47 @@ class CreatePost(APIView):
                 account.objects.insert_coords(json_to_coord(data['coords']))
                 account.save()
             hobby = Hobby.objects.get(code_name=data['hobby'])
-            post = Post.objects.create(
-                post_id=post_ig_generator(),
-                username=account.username,
-                account_id=account.account_id,
-                avatar=account.avatar,
-                hobby=data['hobby'],
-                hobby_name=data['hobby_name'],
-                hobby_weight=hobby.weight,
-                assets=data['assets'],
-                caption=data['caption'],
-                editor=data['editor'],
-                hastags=data['hastags'],
-                atags=data['atags'],
-                coords=json_to_coord(
-                    data['coords']) if is_coord_present else account.current_coord,
-                action_count={'love': 0, 'view': 0,
-                              'share': 0, 'save': 0, 'comment': 0},
-                created_at=get_ist(),
-                rank=0,
-                score=0.0,
-            )
-            tag_query = None
-            all_tags = post.hastags + post.atags
-            for tag in all_tags:
-                if not tag_query:
-                    tag_query = Q(tag=tag)
-                else:
-                    tag_query = tag_query | Q(tag=tag)
+            post_id = post_id_generator()
+            if 'coords' in data:
+                data['coords'] = json_to_coord(data['coords'])
+            data['created_at'] = get_ist()
+            data['action_count']={'love': 0, 'view': 0,
+                          'share': 0, 'save': 0, 'comment': 0}
+            data['rank'] = 0
+            data['score']=  0.0
+            data['username'] = account.username
+            data['avatar'] = account.avatar
+            data['account_id'] = account.account_id
+            data['hobby_weight'] = hobby.weight
+            data['post_id'] = post_id
+            post = Post.objects.create(**data)
 
-            tag_query_length = len(tag_query)
-            tags_present = Tags.objects.filter(tag_query)
-            tags_present_length = len(tags_present)
-            if tag_query_length - tags_present_length > 0:
-                present_tag_names = [tag.tag for tag in tags_present]
-                not_present_tags = filter(
-                    lambda tag: tag not in present_tag_names, all_tags)
-                tags = Tags.objects.bulk_create(
-                    [Tags(tag=tag_name, created_at=get_ist(), first_used=post.post_id) for tag_name in
-                     not_present_tags])
-            # Notify all followers and friends that new post has arrived
-            notify = notify_about_new_post.delay(
-                post.post_id, post.hobby_name, post.account_id)
+            all_tags = post.hastags + post.atags
+            if all_tags:
+                tag_query = None
+                for tag in all_tags:
+                    if not tag_query:
+                        tag_query = Q(tag=tag)
+                    else:
+                        tag_query = tag_query | Q(tag=tag)
+
+                tag_query_length = len(tag_query)
+                tags_present = Tags.objects.filter(tag_query)
+                tags_present_length = len(tags_present)
+                if tag_query_length - tags_present_length > 0:
+                    present_tag_names = [tag.tag for tag in tags_present]
+                    not_present_tags = filter(
+                        lambda tag: tag not in present_tag_names, all_tags)
+                    tags = Tags.objects.bulk_create(
+                        [Tags(tag=tag_name, created_at=get_ist(), first_used=post.post_id) for tag_name in
+                         not_present_tags])
+
+            # notify = notify_about_new_post.delay(
+            #     post.post_id, post.hobby_name, post.account_id)
+            # Future Scope
             return Response({"msg": "successful"}, status=status.HTTP_201_CREATED)
-        except Exception as exception:
+        except Exception as  exception:
+            print(exception)
             return Response({"msg": "Post Creation Failed. Try again later"}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -261,6 +262,18 @@ class GeneralMicroActionView(APIView):
             authenticated_mirco_actions.delay(
                 {"action": data['action'], "pid": data['pid'], 'comment': data['comment']}, token, req_type='POST')
         return Response({}, status=status.HTTP_200_OK)
+
+class ManageAssociation(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        if 'HTTP_AUTHORIZATION' in request.META:
+            token = request.META.get('HTTP_AUTHORIZATION')
+            if request.GET['action'] == 'follow' or request.GET['action'] == 'un_follow':
+                authenticated_association.delay(token,request.GET['fid'], follow= False if request.GET['action'] == 'un_follow' else True)
+            return Response({}, status=status.HTTP_200_OK)
+        else:
+            return Response({}, status=status.HTTP_403_FORBIDDEN)
 
 
 class MicroNotificationActions(APIView):
@@ -366,20 +379,46 @@ class ExploreView(APIView):
                 post) for post in self.explorer.explore_anonymous()]
             return Response({"posts": serialized_posts}, status=status.HTTP_200_OK)
 
+class PostCommentView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        comments = PostComment.objects.filter(post_id=request.GET['pid'])
+        if not comments:
+            return Response({"comments":[]},status=status.HTTP_200_OK)
+        comment = comments.first()
+        return Response({"comments":comment.comments}, status=status.HTTP_200_OK)
+
 
 class OnePostView(APIView):
     permission_classes = [AllowAny]
 
     """
        mapped to url /post/<pk:post>
-       will find the post and comment data and sent to user 
+       will find the post and comment data and sent to user
     """
+    def get_user_action(self,request,pid):
+        if 'HTTP_AUTHORIZATION' in request.META:
+            tokens = Token.objects.filter(key=request.META.get('HTTP_AUTHORIZATION'))
+            if not tokens:
+                return {'loved':0,'viewed':0,'shared':0,'saved':0}
+            token = tokens.first()
+            user = token.user
+            action_store = ActionStore.objects.filter(Q(post_id=pid)&Q(account_id=user.account_id))
+            if action_store:
+                actions = action_store.first()
+                return {'loved':actions.loved,'viewed':actions.viewed,'shared':actions.shared,'saved':actions.saved}
+        else:
+            return {'loved':0,'viewed':0,'shared':0,'saved':0}
 
     def get(self, request, pk):
         post = Post.objects.filter(post_id=pk)
         if post:
             post = post.first()
-            comment = PostComment.objects.get(post_id=pk)
+            comments = PostComment.objects.filter(post_id=pk)
+            comment = []
+            if comments:
+                comment = (comments.first()).comments
             serialized_post = {
                 "post_id": post.post_id,
                 "header": {
@@ -391,15 +430,16 @@ class OnePostView(APIView):
                     "rank": post.rank
                 },
                 "body": post.assets,
-                "captions": post.caption,
+                "caption": post.caption,
                 "footer": {
-                    "actions": post.action_count,
-                    "comments": comment.comments
+                    "action_map": post.action_count,
+                    "comments": comment
                 },
                 "meta": {
                     "created": f'{((get_ist() - post.created_at).seconds / 3600)}h',
                     "score": post.score,
-                    "editor": post.editor
+                    "editor": post.editor,
+                    "actions": self.get_user_action(request,pk)
                 }
             }
             return Response(serialized_post, status=status.HTTP_200_OK)
@@ -487,12 +527,12 @@ class ThirdPartyProfileView(APIView):
             account: Account = accounts.first()
             serialized = ProfileSerializer(account).data
             following = 0
-            friends = 0 
+            friends = 0
             if self.valid_user:
                 following = 1 if account.account_id in self.user.following else 0
                 friends = 1 if account.account_id in self.user.friend else 0
-            serialized['following'] = following 
-            serialized['friend'] = friends 
+            serialized['following'] = following
+            serialized['friend'] = friends
             return Response(serialized, status=status.HTTP_200_OK)
         return Response({}, status=status.HTTP_404_NOT_FOUND)
 

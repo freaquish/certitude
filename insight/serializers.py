@@ -6,7 +6,7 @@ from rest_framework.serializers import ModelSerializer
 class PostSerializer:
 
     def __init__(self, *posts):
-        self.posts = posts
+        self.posts = posts[0]
         if self.posts:
             self.post = self.posts[0]
 
@@ -19,20 +19,25 @@ class PostSerializer:
 
     def render_with_action(self, actions):
         renderd =[]
+        if len(self.posts) == 0:
+            return renderd
         for post in self.posts:
             self.post = post
             serialized = self.serialize()
-            serialized['meta']['action'] = actions[self.post.post_id]
+            if len(actions) > 0 and self.post.post_id in actions:
+                serialized['meta']['actions'] = actions[self.post.post_id]
+            else:
+                serialized['meta']['actions'] = {'loved':0,'shared':0,'saved':0,'viewed':0}
             renderd.append(serialized)
         return renderd
 
     def serialize(self, *delete_keys):
-        user: Account = Account.object.get(account_id=self.post.account_id)
+        user = Account.objects.get(account_id=self.post.account_id)
         data = {'header': {}, 'body': {}, 'caption': {}, 'footer': {}, 'meta': {}, 'post_id': self.post.post_id}
         data['meta']['score'] = self.post.score
         data['meta']['created'] = f'{((get_ist() - self.post.created_at).seconds / 3600)}h'
         data['meta']['editor'] = self.post.editor
-        data['meta']['account_id'] = self.user.account_id
+        data['meta']['account_id'] = user.account_id
         data['header']['avatar'] = self.post.avatar
         data['header']['username'] = self.post.username
         data['header']['hobby_name'] = self.post.hobby_name
@@ -41,7 +46,7 @@ class PostSerializer:
         data['header']['influencer'] = 1 if user.influencer and user.influencing_hobby == self.post.hobby else 0
         data['body'] = self.post.assets
         data['caption'] = self.post.caption
-        data['footer'] = self.post.action_count
+        data['footer']['action_map'] = self.post.action_count
         if delete_keys:
             for key in delete_keys:
                 del data[key]
@@ -88,4 +93,3 @@ class ActionStoreSerializer:
         for action in self.actions:
             json[action.post_id] = self._render(action)
         return json
-
