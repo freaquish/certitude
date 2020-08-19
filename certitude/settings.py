@@ -70,6 +70,10 @@ ROOT_URLCONF = 'certitude.urls'
 
 CORS_ORIGIN_WHITELIST = [
     "http://localhost:3000",
+    "http://www.freaquish.com",
+    "https://www.freaquish.com",
+    "http://freaquish.com",
+    "https://freaquish.com"
 ]
 
 TEMPLATES = [
