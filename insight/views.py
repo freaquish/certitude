@@ -124,21 +124,12 @@ class CreateHobby(APIView):
         if not (user.is_staff and user.is_superuser):
             return Response({}, status=status.HTTP_401_UNAUTHORIZED)
         data: dict = json.loads(request.body)
-        hobby = Hobby.objects.get_or_create(code_name=data['code_name'])[0]
-        hobby.name = data['name']
-        if 'editors' in data.keys():
-            hobby.editors = list(set(hobby.editors + data['editors'].split(','))) if hobby.editors else data[
-                'editors'].split(',')
-        if 'limits' in data.keys():
-            hobby.limits = data['limits']
-        if 'weight' in data.keys():
-            hobby.weight = float(data['weight'])
-        hobby.save()
-        return Response({"code_name": hobby.code_name,
-                         "name": hobby.name,
-                         "editors": hobby.editors,
-                         "limits": hobby.limits,
-                         "weight": hobby.weight}, status=status.HTTP_201_CREATED)
+        hobbies=[]
+        for hobby in data:
+            hobbies.append(hobby)
+        Hobby.objects.bulk_create(hobbies)
+        hobbies_list = HobbySerializer(Hobby.objects.all(), many=True)
+        return Response({"hobbies_list":hobbies.data}, status=status.HTTP_201_CREATED)
 
 
 class RetrieveHobby(APIView):
