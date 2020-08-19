@@ -25,7 +25,7 @@ SECRET_KEY = '2wb03249pwb+e%x@p&r%j3&^izsa3gv=&&54i@288-fh=n8^_9'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['frequish.com','172.105.37.93']
+ALLOWED_HOSTS = ['condom.frequish.com','172.105.37.93']
 
 
 # Application definition
