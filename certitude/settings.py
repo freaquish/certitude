@@ -73,7 +73,8 @@ CORS_ORIGIN_WHITELIST = [
     "http://www.freaquish.com",
     "https://www.freaquish.com",
     "http://freaquish.com",
-    "https://freaquish.com"
+    "https://freaquish.com",
+    "*"
 ]
 
 TEMPLATES = [
