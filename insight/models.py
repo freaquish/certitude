@@ -103,7 +103,7 @@ class Hobby(models.Model):
     name = models.CharField(max_length=40, default='')
     editors = ArrayField(models.CharField(max_length=30), default=list)
     limits = JSONField(default=dict)
-    weight = models.DecimalField(max_digits=3, decimal_places=2, default=0.0)
+    weight = models.DecimalField(max_digits=5, decimal_places=3, default=0.0)
 
 
 class Post(models.Model):

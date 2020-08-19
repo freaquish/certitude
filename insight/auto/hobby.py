@@ -7,7 +7,7 @@ def make(name, weight, *editors):
         edit = ['custom_editor','type_writer']
     elif len(editors) == 0:
         edit = ['custom_editor']
-    return {"name":name, "weight": weight, "code_name": f'{name.lower().replace(" ","")}{int(weight*100)}', "editors": ",".join(edit)}
+    return {"name":name, "weight": weight, "code_name": f'{name.lower().replace(" ","")}{int(weight*100)}', "editors": edit}
 
 def create_hobby():
     hobbies = [['Fashion',10.75,'all'],['Knitting',10.50],['Nail Art',10.25],['Makeup',10.0],['Gardening',9.50],
