@@ -16,7 +16,7 @@ class PostSerializer:
             self.post = post
             user = Account.objects.filter(account_id=self.post.account_id)
             if user:
-                renderd.append(self.serialize(user.first()))
+                renderd.append(self.serialize(user.first()))                
         return renderd
 
     def render_with_action(self, actions):
@@ -27,7 +27,7 @@ class PostSerializer:
             self.post = post
             user = Account.objects.filter(account_id=self.post.account_id)
             if user:
-                serialized = self.serialize()
+                serialized = self.serialize(user)
                 if len(actions) > 0 and self.post.post_id in actions:
                     serialized['meta']['actions'] = actions[self.post.post_id]
                 else:

@@ -54,6 +54,20 @@ def username_available(request):
     else:
         return Response({'available': 0}, status=status.HTTP_200_OK)
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def account_available(request):
+    result = False
+    username = request.GET['account_id']
+    if len(username) >= 10:
+        accounts = Account.objects.filter(account_id=account_id)
+        if not accounts:
+            return Response({'available': 1}, status=status.HTTP_200_OK)
+        else:
+            return Response({'available': 0}, status=status.HTTP_200_OK)
+    else:
+        return Response({'available': 0}, status=status.HTTP_200_OK)
+
 
 class RegistrationView(APIView):
     permission_classes = [AllowAny]
