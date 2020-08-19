@@ -23,7 +23,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = '2wb03249pwb+e%x@p&r%j3&^izsa3gv=&&54i@288-fh=n8^_9'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['condom.freaquish.com','172.105.37.93']
 
