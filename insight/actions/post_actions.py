@@ -29,6 +29,8 @@ class MicroActions:
         self.post = Post.objects.filter(post_id=post_id).first()
         if account:
             self.user = account
+        else:
+            self.user = None
         self.anonymous = anonymous
 
     def score_post(self,weight=0.0):
