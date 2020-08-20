@@ -30,23 +30,23 @@ class Feed:
         # Gathering all posts and nearby posts of all hobbies
         for hobby in hobby_map:
             if hobby_query == None:
-                hobby_query = Q(Q(weight__gte=hobbies[hobby]) & Q(weight__lte=hobbies[hobby]))
+                hobby_query = Q(Q(hobby__weight__gte=hobbies[hobby]) & Q(hobby__weight__lte=hobbies[hobby]))
             else:
-                hobby_query = hobby_query | Q(Q(weight__gte=hobbies[hobby] - 1) & Q(weight__lt=hobbies[hobby] + 1.25))
+                hobby_query = hobby_query | Q(Q(hobby__weight__gte=hobbies[hobby] - 1) & Q(hobby__weight__lt=hobbies[hobby] + 1.25))
 
         # Gathering all post of friends
         for friend in self.account.friend:
             if query == None:
-                query = Q(account_id=friend)
+                query = Q(account__account_id=friend)
             else:
-                query = query | Q(account_id=friend)
+                query = query | Q(account__account_id=friend)
 
         # Gathering all post of following
         for follow in self.account.following:
             if not query:
-                query = Q(account_id=follow)
+                query = Q(account__account_id=follow)
             else:
-                query = query | Q(account_id=follow)
+                query = query | Q(account__account_id=follow)
         # Adding all the queries
         final_query = Q()
         if query and hobby_query:

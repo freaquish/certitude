@@ -210,10 +210,8 @@ class CreatePost(APIView):
                           'share': 0, 'save': 0, 'comment': 0}
             data['rank'] = 0
             data['score']=  0.0
-            data['username'] = account.username
-            data['avatar'] = account.avatar
-            data['account_id'] = account.account_id
-            data['hobby_weight'] = hobby.weight
+            data['account'] = account
+            data['hobby'] = hobby
             data['post_id'] = post_id
             post = Post.objects.create(**data)
 
@@ -427,11 +425,11 @@ class OnePostView(APIView):
             serialized_post = {
                 "post_id": post.post_id,
                 "header": {
-                    "username": post.username,
-                    "avatar": post.avatar,
-                    "account_id": post.account_id,
-                    "hobby": post.hobby,
-                    "hobby_name": post.hobby_name,
+                    "username": post.account.username,
+                    "avatar": post.account.avatar,
+                    "account_id": post.account.account_id,
+                    "hobby": post.hobby.code_name,
+                    "hobby_name": post.hobby.name,
                     "rank": post.rank
                 },
                 "body": post.assets,
@@ -539,6 +537,10 @@ class ThirdPartyProfileView(APIView):
                 friends = 1 if account.account_id in self.user.friend else 0
             serialized['following'] = following
             serialized['friend'] = friends
+            posts = Post.objects.filter(account__account_id=account.account_id)
+            serialized_posts = [{"post_id": post.post_id, "hobby": post.hobby.code_name,
+                                 "assets": post.assets, "editor": post.editor} for post in posts]
+            serialized['posts'] = serialized_posts
             return Response(serialized, status=status.HTTP_200_OK)
         return Response({}, status=status.HTTP_404_NOT_FOUND)
 
@@ -549,6 +551,8 @@ class ProfileView(APIView):
 
     @staticmethod
     def verify_token(request):
+        if not 'HTTP_AUTHORIZATION' in request.META:
+            return None
         token_key: str = request.META.get('HTTP_AUTHORIZATION')
         token: str = "".join(token_key.split('Token ')
                              ) if 'Token' in token_key else token_key
@@ -562,8 +566,8 @@ class ProfileView(APIView):
         user = self.verify_token(request)
         if not user:
             return Response({}, status=status.HTTP_404_NOT_FOUND)
-        posts = Post.objects.filter(account_id=user.account_id)
-        serialized_posts = [{"post_id": post.id, "hobby": post.hobby,
+        posts = Post.objects.filter(account__account_id=user.account_id)
+        serialized_posts = [{"post_id": post.post_id, "hobby": post.hobby.code_name,
                              "assets": post.assets, "editor": post.editor} for post in posts]
         serialized_account = ProfileSerializer(user).data
         serialized_account['posts'] = serialized_posts

@@ -1,6 +1,6 @@
 certitude/__pycache__
 insight/__pycache__
+backup/
 insight/tests/__pycache__
 db.sqlite3
 .idea
-

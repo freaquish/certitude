@@ -38,9 +38,9 @@ class MicroActions:
             primary_hobby_weight: float = float(Hobby.objects.get(code_name=self.user.primary_hobby).weight)
         else:
             primary_hobby_weight = 0.0
-        post_hobby_weight: float = float(Hobby.objects.get(code_name=self.post.hobby).weight)
+        post_hobby_weight: float = float(self.post.hobby.weight)
         multiplier: float = float(
-            self.user.hobby_map[self.post.hobby] if self.post.hobby in self.user.hobby_map else 1)
+            self.user.hobby_map[self.post.hobby.code_name] if self.post.hobby.code_name in self.user.hobby_map else 1)
         hobby_distance: float = 1 + abs(primary_hobby_weight - post_hobby_weight) / multiplier
 
         date_distance = abs((get_ist() - self.post.created_at).seconds) + 1

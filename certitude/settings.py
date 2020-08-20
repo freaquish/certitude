@@ -15,6 +15,7 @@ from .database import DATBASE
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+BACKUP_DIR = os.path.join(BASE_DIR,"backup")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/
@@ -25,7 +26,7 @@ SECRET_KEY = '2wb03249pwb+e%x@p&r%j3&^izsa3gv=&&54i@288-fh=n8^_9'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['condom.freaquish.com','172.105.37.93']
+ALLOWED_HOSTS = ['condom.freaquish.com','172.105.37.93','localhost','127.0.0.0']
 
 
 # Application definition

@@ -14,9 +14,9 @@ class PostSerializer:
         renderd = []
         for post in self.posts:
             self.post = post
-            user = Account.objects.filter(account_id=self.post.account_id)
+            user = self.post.acount
             if user:
-                renderd.append(self.serialize(user.first()))
+                renderd.append(self.serialize(user))
         return renderd
 
     def render_with_action(self, actions):
@@ -25,9 +25,9 @@ class PostSerializer:
             return renderd
         for post in self.posts:
             self.post = post
-            user = Account.objects.filter(account_id=self.post.account_id)
+            user = self.post.account
             if user:
-                serialized = self.serialize(user.first())
+                serialized = self.serialize(user)
                 if len(actions) > 0 and self.post.post_id in actions:
                     serialized['meta']['actions'] = actions[self.post.post_id]
                 else:
@@ -41,12 +41,12 @@ class PostSerializer:
         data['meta']['created'] = f'{((get_ist() - self.post.created_at).seconds / 3600)}h'
         data['meta']['editor'] = self.post.editor
         data['meta']['account_id'] = user.account_id
-        data['header']['avatar'] = self.post.avatar
-        data['header']['username'] = self.post.username
-        data['header']['hobby_name'] = self.post.hobby_name
-        data['header']['hobby'] = self.post.hobby
+        data['header']['avatar'] = user.avatar
+        data['header']['username'] = user.username
+        data['header']['hobby_name'] = self.post.hobby.name
+        data['header']['hobby'] = self.post.hobby.code_name
         data['header']['rank'] = self.post.rank if self.post.rank != 0 else 'null'
-        data['header']['influencer'] = 1 if user.influencer and user.influencing_hobby == self.post.hobby else 0
+        data['header']['influencer'] = 1 if user.influencer and user.influencing_hobby == self.post.hobby.code_name else 0
         data['body'] = self.post.assets
         data['caption'] = self.post.caption
         data['footer']['action_map'] = self.post.action_count
@@ -74,7 +74,7 @@ class ProfileSerializer(ModelSerializer):
 class ExplorePostSerializer(ModelSerializer):
     class Meta:
         model = Post
-        fields = ('post_id', 'assets', 'captions', 'score', 'hobby', 'hobby_name', 'created_at', 'editor')
+        fields = ('post_id', 'assets', 'captions', 'score', 'hobby', 'created_at', 'editor')
 
 
 class ActionStoreSerializer:

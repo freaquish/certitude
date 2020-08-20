@@ -109,12 +109,11 @@ class Hobby(models.Model):
 class Post(models.Model):
     post_id = models.CharField(max_length=22, primary_key=True, default='')
     username = models.CharField(max_length=30, default='')
-    account_id = models.CharField(max_length=50)
-    avatar = models.TextField()
+    # account_id = models.CharField(max_length=50, default='')
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, default='account_id')
     editor = models.CharField(max_length=14)
-    hobby = models.CharField(max_length=30, default='')
-    hobby_name = models.CharField(max_length=40, default='')
-    hobby_weight = models.DecimalField(max_digits=4, decimal_places=2, default=0.00)
+    # hobby = models.CharField(max_length=30, default='')
+    hobby = models.ForeignKey(Hobby, on_delete=models.CASCADE, default='')
     assets = JSONField(default=dict)
     caption = models.TextField()
     hastags = ArrayField(models.CharField(max_length=20), default=list)
@@ -124,6 +123,7 @@ class Post(models.Model):
     created_at = models.DateTimeField(default=get_ist())
     rank = models.IntegerField(default=0)
     score = models.DecimalField(max_digits=7, decimal_places=3, default=0.0)
+
 
 
 
