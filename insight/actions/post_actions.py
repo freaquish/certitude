@@ -59,8 +59,8 @@ class MicroActions:
        if self.user and not self.anonymous:
            action_store, created = ActionStore.objects.get_or_create(post_id=self.post.post_id,
                                                                      account_id=self.user.account_id)
-           if 'viewed' in action and action_store.viewed and (get_ist() - action_store.viewed_at).seconds < 300:
-               pass
+           if 'viewed' in action and action_store.viewed:
+               return None
            else:
                action_store.__class__.objects.update(**action)
 
@@ -92,7 +92,9 @@ class MicroActions:
 
     def micro_actions(self, action, val=''):
         weight = 0.0
-        if action == "love":
+        if self.user.account_id == self.post.account.account_id and action != "comment":
+            return None
+        elif action == "love":
             self.commit_action(loved=True,loved_at=get_ist())
             weight = WEIGHT_LOVE
         elif action == "un_love":
