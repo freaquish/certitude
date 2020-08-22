@@ -58,8 +58,8 @@ def username_available(request):
 @permission_classes([AllowAny])
 def account_available(request):
     result = False
-    username = request.GET['account_id']
-    if len(username) >= 10:
+    account_id = request.GET['aid']
+    if len(account_id) >= 10:
         accounts = Account.objects.filter(account_id=account_id)
         if not accounts:
             return Response({'available': 1}, status=status.HTTP_200_OK)
