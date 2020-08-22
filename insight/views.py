@@ -191,7 +191,7 @@ class CreatePost(APIView):
 
     def post(self, request):
         data: dict = json.loads(request.body)
-        try:
+        if True:
             self.verify_token()
             if not self.valid_user:
                 return Response({}, status=status.HTTP_403_FORBIDDEN)
@@ -239,7 +239,7 @@ class CreatePost(APIView):
             #     post.post_id, post.hobby_name, post.account_id)
             # Future Scope
             return Response({"msg": "successful"}, status=status.HTTP_201_CREATED)
-        except Exception as  exception:
+        else:
             print(exception)
             return Response({"msg": "Post Creation Failed. Try again later"}, status=status.HTTP_400_BAD_REQUEST)
 
