@@ -474,7 +474,7 @@ class FeedView(APIView):
             posts, actions = self.feed.extract_feed_known()
             serialized_actions = ActionStoreSerializer(actions).data()
             serialized = PostSerializer(
-                posts).render_with_action(serialized_actions)
+                posts,self.user).render_with_action(serialized_actions)
             return Response({'posts': serialized,
                              'meta': {'avatar': self.user.avatar, 'first_name': self.user.first_name},
                              'notification': 1 if self.user.new_notification else 0}, status=status.HTTP_200_OK)
@@ -546,8 +546,8 @@ class ThirdPartyProfileView(APIView):
 
 
 class ProfileView(APIView):
-    # authentication_classes = [TokenAuthentication]
-    permission_classes = [AllowAny]
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
     @staticmethod
     def verify_token(request):

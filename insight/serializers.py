@@ -5,10 +5,15 @@ from rest_framework.serializers import ModelSerializer
 
 class PostSerializer:
 
-    def __init__(self, *posts):
-        self.posts = posts[0]
-        if self.posts:
+    def __init__(self, *kwarg):
+        self.kwarg = kwarg
+        self.post= None
+        self.account = None
+        if self.kwarg:
+            self.posts = self.kwarg[0]
             self.post = self.posts[0]
+            if len(self.kwarg) > 1:
+                self.account = self.kwarg[1]
 
     def render(self):
         renderd = []
@@ -36,6 +41,7 @@ class PostSerializer:
         return renderd
 
     def serialize(self,user, *delete_keys):
+        #check if account is following the user
         data = {'header': {}, 'body': {}, 'caption': {}, 'footer': {}, 'meta': {}, 'post_id': self.post.post_id}
         data['meta']['score'] = self.post.score
         data['meta']['created'] = f'{((get_ist() - self.post.created_at).seconds / 3600)}h'
@@ -45,6 +51,7 @@ class PostSerializer:
         data['header']['username'] = user.username
         data['header']['hobby_name'] = self.post.hobby.name
         data['header']['hobby'] = self.post.hobby.code_name
+        data['header']['following'] = 1 if self.account and (user.account_id in self.account.following or user.account_id == self.account.account_id) else 0
         data['header']['rank'] = self.post.rank if self.post.rank != 0 else 'null'
         data['header']['influencer'] = 1 if user.influencer and user.influencing_hobby == self.post.hobby.code_name else 0
         data['body'] = self.post.assets
