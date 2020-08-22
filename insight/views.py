@@ -546,8 +546,8 @@ class ThirdPartyProfileView(APIView):
 
 
 class ProfileView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    permission_classes = [AllowAny]
 
     @staticmethod
     def verify_token(request):
