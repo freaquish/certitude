@@ -78,13 +78,14 @@ class MicroActions:
 
     @staticmethod
     def follow_user(followee: Account, follower: Account):
-        if follwer.following:
+        if follower.following:
             follower.following.append(followee.account_id)
-            follower.following_count += 1
+            follower.following_count  = len(follower.following)
+            # followee.follower_count = len(Account.object.filter(Q(following__contains=[followee.account_id])))
         else:
             follower.following = [followee.account_id]
-            follower.following = 1
-        followee.follower_count  = followee.follower_count + 1 if followee.follower_count else 1
+            follower.following_count  = len(follower.following)
+        followee.follower_count  = len(Account.object.filter(Q(following__contains=[followee.account_id])))
         follower.save()
         followee.save()
 
@@ -92,37 +93,43 @@ class MicroActions:
 
     def micro_actions(self, action, val=''):
         weight = 0.0
+        stores =[]
         if self.user.account_id == self.post.account.account_id and action != "comment":
             return None
         elif action == "love":
             self.commit_action(loved=True,loved_at=get_ist())
             weight = WEIGHT_LOVE
+            stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) & Q(loved=True))
         elif action == "un_love":
             self.commit_action(loved=False)
             weight = 0.0
+            stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) & Q(loved=True))
+            self.post.action_count['love'] = len(stores)
         elif action == "share":
             self.commit_action(shared=True)
             weight = WEIGHT_SHARE
+            stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) & Q(shared=True))
+            self.post.action_count['share'] = len(stores)
         elif action == "view":
             self.commit_action(viewed=True,viewed_at=get_ist())
             weight = WEIGHT_VIEW
+            stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) & Q(viewed=True))
+            self.post.action_count['view'] = len(stores)
         elif action == "save":
             self.commit_action(saved=True)
             self.user.saves.append(self.post.post_id)
             weight = WEIGHT_SAVE
+            stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) & Q(saved=True))
+            self.post.action_count['save'] = len(stores)
         elif action == "un_save":
             self.commit_action(saved=False)
             self.user.saves.remove(self.post.post_id)
             weight = 0.0
+            stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) & Q(loved=True))
+            self.post.action_count['save'] = len(stores)
         elif action == "comment":
             self.commented(val)
             weight = WEIGHT_COMMENT
-        if action == "un_love":
-            self.post.action_count['love'] -= 1
-        elif action == "un_save":
-            self.post.action_count['save'] -= 1
-        else:
-            self.post.action_count[action] += 1
         self.post.score = self.score_post(weight=weight)
         self.post.save()
 
