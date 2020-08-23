@@ -84,7 +84,7 @@ class MicroActions:
 
     @staticmethod
     def follow_user(followee: Account, follower: Account):
-        print(followee.username,follower.username,'follow')
+        print(f"{followee.username},"{follower.username}",'follow'")
         if follower.following:
             follower.following.append(followee.account_id)
             follower.following_count  = len(follower.following)
@@ -92,7 +92,7 @@ class MicroActions:
         else:
             follower.following = [followee.account_id]
             follower.following_count  = len(follower.following)
-        followee.follower_count  = len(Account.object.filter(Q(following__contains=[followee.account_id])))
+        followee.follower_count  = len(Account.objects.filter(Q(following__contains=[followee.account_id])))
         follower.save()
         followee.save()
 
@@ -103,7 +103,7 @@ class MicroActions:
             follower.following.append(followee.account_id)
             follower.following_count  = len(follower.following)
             # followee.follower_count = len(Account.object.filter(Q(following__contains=[followee.account_id])))
-        followee.follower_count  = len(Account.object.filter(Q(following__contains=[followee.account_id])))
+        followee.follower_count  = len(Account.objects.filter(Q(following__contains=[followee.account_id])))
         follower.save()
         followee.save()
 
