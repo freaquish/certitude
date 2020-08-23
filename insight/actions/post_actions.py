@@ -161,7 +161,7 @@ def authenticated_mirco_actions(GET,token,req_type='GET'):
             return None
         token = tokens.first()
         account: Account = token.user
-        print(account.account_id.data['action'])
+        print(account.account_id,data['action'])
         data = {}
         if req_type == "POST":
             data = json.load(GET)
