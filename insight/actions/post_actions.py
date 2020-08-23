@@ -59,9 +59,15 @@ class MicroActions:
        if self.user and not self.anonymous:
            action_store, created = ActionStore.objects.get_or_create(post_id=self.post.post_id,
                                                                      account_id=self.user.account_id)
-           if 'viewed' in action and action_store.viewed:
+           key = list(action.keys())[0]
+           if key == 'viewed' and action_store.viewed:
                return None
            else:
+               action_dict_object = action_store.__dict__
+               if key == 'loved':
+                   action[key] = not  action_dict_object[key]
+               elif key == 'saved':
+                   action[key] = not  action_dict_object[key]
                action_store.__class__.objects.update(**action)
 
     def commented(self, value):
@@ -78,6 +84,7 @@ class MicroActions:
 
     @staticmethod
     def follow_user(followee: Account, follower: Account):
+        print(followee.username,follower.username,'follow')
         if follower.following:
             follower.following.append(followee.account_id)
             follower.following_count  = len(follower.following)
@@ -85,6 +92,17 @@ class MicroActions:
         else:
             follower.following = [followee.account_id]
             follower.following_count  = len(follower.following)
+        followee.follower_count  = len(Account.object.filter(Q(following__contains=[followee.account_id])))
+        follower.save()
+        followee.save()
+
+    @staticmethod
+    def un_follow_user(followee: Account, follower: Account):
+        print(followee.username,follower.username,'follow')
+        if follower.following and followee.account_id in follower.following:
+            follower.following.append(followee.account_id)
+            follower.following_count  = len(follower.following)
+            # followee.follower_count = len(Account.object.filter(Q(following__contains=[followee.account_id])))
         followee.follower_count  = len(Account.object.filter(Q(following__contains=[followee.account_id])))
         follower.save()
         followee.save()
@@ -100,6 +118,7 @@ class MicroActions:
             self.commit_action(loved=True,loved_at=get_ist())
             weight = WEIGHT_LOVE
             stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) & Q(loved=True))
+            self.post.action_count['love'] = len(stores)
         elif action == "un_love":
             self.commit_action(loved=False)
             weight = 0.0
@@ -142,7 +161,7 @@ def authenticated_mirco_actions(GET,token,req_type='GET'):
             return None
         token = tokens.first()
         account: Account = token.user
-        print(type(account))
+        print(account.account_id.data['action'])
         data = {}
         if req_type == "POST":
             data = json.load(GET)
