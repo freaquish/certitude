@@ -45,7 +45,7 @@ class MicroActions:
             self.user.hobby_map[self.post.hobby.code_name] if self.post.hobby.code_name in self.user.hobby_map else 1)
         hobby_distance: float = 1 + abs(primary_hobby_weight - post_hobby_weight) / multiplier
 
-        date_distance = abs((get_ist() - self.post.created_at).seconds) + 1
+        # date_distance = abs((get_ist() - self.post.created_at).seconds) + 1
 
         comment_score: float = float(WEIGHT_COMMENT * self.post.action_count['comment'])
         love_score: float = float(WEIGHT_LOVE * self.post.action_count['love'])
@@ -53,22 +53,19 @@ class MicroActions:
         save_score: float = float(WEIGHT_SAVE * self.post.action_count['save'])
         view_score: float = float(WEIGHT_VIEW * self.post.action_count['view'])
         return 1 + (comment_score * love_score * share_score * save_score * view_score) / (
-                date_distance * hobby_distance)
+               hobby_distance)
 
     def commit_action(self, **action):
-       if self.user and not self.anonymous:
-           action_store, created = ActionStore.objects.get_or_create(post_id=self.post.post_id,
+        print('active')
+        if self.user:
+            action_store, created = ActionStore.objects.get_or_create(post_id=self.post.post_id,
                                                                      account_id=self.user.account_id)
-           key = list(action.keys())[0]
-           if key == 'viewed' and action_store.viewed:
-               return None
-           else:
-               action_dict_object = action_store.__dict__
-               if key == 'loved':
-                   action[key] = not  action_dict_object[key]
-               elif key == 'saved':
-                   action[key] = not  action_dict_object[key]
-               action_store.__class__.objects.update(**action)
+            if 'viewed' in action and action_store.viewed:
+                return None 
+            else:
+                print('Im in')
+                action_store.__class__.objects.update(**action)               
+        return None
 
     def commented(self, value):
         if self.user:
@@ -82,43 +79,71 @@ class MicroActions:
             comment.save()
             self.commit_action(commented=True)
 
+    """
+      Follow user function will receive two arguments
+      followed: the account to be followed
+      user: the account requesting to follow
+      Steps:
+         1. Check if user.following column is not None, if yes then assign a list
+         2. Check if followed is not present in user.following, if yes then [return None] else Step 3
+         3. Append followed in user.following
+         4. Increase the following count of user and follower count of followed, save
+         5. [return None]
+    """
+
     @staticmethod
-    def follow_user(followee: Account, follower: Account):
-        print(f"{followee.username},"{follower.username}",'follow'")
-        if follower.following:
-            follower.following.append(followee.account_id)
-            follower.following_count  = len(follower.following)
-            # followee.follower_count = len(Account.object.filter(Q(following__contains=[followee.account_id])))
+    def follow_user(followed: Account, user: Account):
+        print(f"{followed.username},{user.username},'follow'")
+        if not user.following:
+            user.following = []
+        if followed.account_id in user.following:
+            return None
+        user.following.append(followed.account_id)
+        user.following_count  = len(user.following)
+        if followed.follower_count:
+            followed.follower_count += 1
         else:
-            follower.following = [followee.account_id]
-            follower.following_count  = len(follower.following)
-        followee.follower_count  = len(Account.objects.filter(Q(following__contains=[followee.account_id])))
-        follower.save()
-        followee.save()
+            followed.follower_count = 1
+        user.save()
+        followed.save()
+        return None
+        
+    """
+     Un-Follow User(followed,user)
+     Steps:
+        1. Check if followed is in user.following, if no [return None] else Step 2
+        2. remove followed from user.following
+        3. update user.following_count and followed.follower_count, save
+        4. [return None]
+    """
 
     @staticmethod
-    def un_follow_user(followee: Account, follower: Account):
-        print(followee.username,follower.username,'follow')
-        if follower.following and followee.account_id in follower.following:
-            follower.following.append(followee.account_id)
-            follower.following_count  = len(follower.following)
-            # followee.follower_count = len(Account.object.filter(Q(following__contains=[followee.account_id])))
-        followee.follower_count  = len(Account.objects.filter(Q(following__contains=[followee.account_id])))
-        follower.save()
-        followee.save()
-
+    def un_follow_user(followed: Account, user: Account):
+        print(f"{followed.username},{user.username},'un_follow'")
+        if not followed.account_id in user.following:
+            return None
+        user.following.remove(followed.account_id)
+        user.following_count = len(user.following)
+        if followed.follower > 1:
+            followed.follower -= 1
+        else:
+            followed.follower = 0
+        user.save()
+        followed.save()
+        return None
 
 
     def micro_actions(self, action, val=''):
         weight = 0.0
-        stores =[]
-        if self.user.account_id == self.post.account.account_id and action != "comment":
+        stores = []
+        if self.user.account_id == self.post.account.account_id and action == 'view' and action == 'save':
             return None
         elif action == "love":
             self.commit_action(loved=True,loved_at=get_ist())
             weight = WEIGHT_LOVE
             stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) & Q(loved=True))
             self.post.action_count['love'] = len(stores)
+            print(self.post.action_count)
         elif action == "un_love":
             self.commit_action(loved=False)
             weight = 0.0
@@ -161,12 +186,13 @@ def authenticated_mirco_actions(GET,token,req_type='GET'):
             return None
         token = tokens.first()
         account: Account = token.user
-        print(account.account_id,data['action'])
+
         data = {}
         if req_type == "POST":
             data = json.load(GET)
         elif req_type == "GET":
             data = GET
+        print(f"{account.account_id},{data['action']}")
         micro_action = MicroActions(data['pid'], account=account)
         micro_action.micro_actions(data['action'], val=data['comment'] if data['action'] == "comment" else '')
         return None
