@@ -11,6 +11,7 @@ class PostSerializer:
         self.account = None
         if self.kwarg:
             self.posts = self.kwarg[0]
+            # print(self.posts)
             self.post = self.posts[0]
             if len(self.kwarg) > 1:
                 self.account = self.kwarg[1]
@@ -42,7 +43,7 @@ class PostSerializer:
 
     def serialize(self,user, *delete_keys):
         #check if account is following the user
-        data = {'header': {}, 'body': {}, 'caption': {}, 'footer': {}, 'meta': {}, 'post_id': self.post.post_id}
+        data = {'created_at': self.post.created_at,'header': {}, 'body': {}, 'caption': {}, 'footer': {}, 'meta': {}, 'post_id': self.post.post_id}
         data['meta']['score'] = self.post.score
         data['meta']['created'] = f'{((get_ist() - self.post.created_at).seconds / 3600)}h'
         data['meta']['editor'] = self.post.editor
@@ -51,7 +52,10 @@ class PostSerializer:
         data['header']['username'] = user.username
         data['header']['hobby_name'] = self.post.hobby.name
         data['header']['hobby'] = self.post.hobby.code_name
-        data['header']['following'] = 1 if self.account and (user.account_id in self.account.following or user.account_id == self.account.account_id) else 0
+        data['header']['following'] = 0
+        if self.account and (user == self.account or self.post.account.account_id in self.account.following):
+            data['header']['following'] = 1
+
         data['header']['rank'] = self.post.rank if self.post.rank != 0 else 'null'
         data['header']['influencer'] = 1 if user.influencer and user.influencing_hobby == self.post.hobby.code_name else 0
         data['body'] = self.post.assets
@@ -103,3 +107,25 @@ class ActionStoreSerializer:
         for action in self.actions:
             json[action.post_id] = self._render(action)
         return json
+
+
+
+class FollowSerializer:
+    def __init__(self, follows):
+        self.follows = follows
+    
+    @staticmethod
+    def _serialize(follow):
+        data = {}
+        data["account_id"] = follow.account_id 
+        data["username"] = follow.username
+        data["avatar"] = follow.avatar 
+        data["first_name"] = follow.first_name
+        data["last_name"] = follow.last_name
+        return data
+    
+    def render(self):
+        rendered = []
+        for follow in self.follows:
+            rendered.append(self._serialize(follow))
+        return rendered

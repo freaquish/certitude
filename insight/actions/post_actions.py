@@ -3,6 +3,7 @@ from insight.models import *
 import json
 from insight.utils import *
 from django.db.models import Q, QuerySet
+from insight.manager.analyzer import Analyzer
 
 """
  Micro Actions are set of actions included in the post, generally used for expression about the post by the viewer.
@@ -29,6 +30,7 @@ class MicroActions:
         self.post = Post.objects.filter(post_id=post_id).first()
         if account:
             self.user = account
+            self.analyzer = Analyzer(self.user)
         else:
             self.user = None
         self.anonymous = anonymous
@@ -47,11 +49,12 @@ class MicroActions:
 
         # date_distance = abs((get_ist() - self.post.created_at).seconds) + 1
 
-        comment_score: float = float(WEIGHT_COMMENT * self.post.action_count['comment'])
-        love_score: float = float(WEIGHT_LOVE * self.post.action_count['love'])
-        share_score: float = float(WEIGHT_SHARE * self.post.action_count['share'])
-        save_score: float = float(WEIGHT_SAVE * self.post.action_count['save'])
-        view_score: float = float(WEIGHT_VIEW * self.post.action_count['view'])
+        comment_score: float = 1.0 + float(WEIGHT_COMMENT * self.post.action_count['comment'])
+        love_score: float =  1.0 + float(WEIGHT_LOVE * self.post.action_count['love'])
+        share_score: float = 1.0 + float(WEIGHT_SHARE * self.post.action_count['share'])
+        save_score: float = 1.0 + float(WEIGHT_SAVE * self.post.action_count['save'])
+        view_score: float = 1.0 + float(WEIGHT_VIEW * self.post.action_count['view'])
+        # print(comment_score,love_score,share_score,save_score,view_score,hobby_distance)
         return 1 + (comment_score * love_score * share_score * save_score * view_score) / (
                hobby_distance)
 
@@ -136,44 +139,55 @@ class MicroActions:
     def micro_actions(self, action, val=''):
         weight = 0.0
         stores = []
-        if self.user.account_id == self.post.account.account_id and action == 'view' and action == 'save':
+        if self.user.account_id == self.post.account.account_id and action == 'save':
             return None
         elif action == "love":
             self.commit_action(loved=True,loved_at=get_ist())
             weight = WEIGHT_LOVE
             stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) & Q(loved=True))
-            self.post.action_count['love'] = len(stores)
-            print(self.post.action_count)
+            self.post.action_count['love'] += 1
+            self.analyzer.analyze(self.post, WEIGHT_LOVE)
         elif action == "un_love":
             self.commit_action(loved=False)
             weight = 0.0
             stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) & Q(loved=True))
-            self.post.action_count['love'] = len(stores)
+            if self.post.action_count['love'] > 0:
+                self.post.action_count['love'] -= 1
+            else:
+                self.post.action_count['love'] = 0
         elif action == "share":
             self.commit_action(shared=True)
             weight = WEIGHT_SHARE
             stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) & Q(shared=True))
-            self.post.action_count['share'] = len(stores)
+            self.analyzer.analyze(self.post, WEIGHT_SHARE)
+            self.post.action_count['share'] += 1
         elif action == "view":
             self.commit_action(viewed=True,viewed_at=get_ist())
             weight = WEIGHT_VIEW
             stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) & Q(viewed=True))
-            self.post.action_count['view'] = len(stores)
+            self.post.action_count['view'] += 1
+            self.analyzer.analyze(self.post, WEIGHT_VIEW)
         elif action == "save":
             self.commit_action(saved=True)
             self.user.saves.append(self.post.post_id)
             weight = WEIGHT_SAVE
             stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) & Q(saved=True))
-            self.post.action_count['save'] = len(stores)
+            self.post.action_count['save'] += 1
+            self.analyzer.analyze(self.post, WEIGHT_SAVE)
         elif action == "un_save":
             self.commit_action(saved=False)
             self.user.saves.remove(self.post.post_id)
             weight = 0.0
             stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) & Q(loved=True))
-            self.post.action_count['save'] = len(stores)
+            if self.post.action_count['save'] > 0:
+                self.post.action_count['save'] -= 1
+            else:
+                self.post.action_count['save'] = 0
         elif action == "comment":
             self.commented(val)
             weight = WEIGHT_COMMENT
+            self.post.action_count['comment'] += 1
+            self.analyzer.analyze(self.post, WEIGHT_COMMENT)
         self.post.score = self.score_post(weight=weight)
         self.post.save()
 

@@ -32,7 +32,7 @@ class Feed:
             if hobby_query == None:
                 hobby_query = Q(Q(hobby__weight__gte=hobbies[hobby]) & Q(hobby__weight__lte=hobbies[hobby]))
             else:
-                hobby_query = hobby_query | Q(Q(hobby__weight__gte=hobbies[hobby] - 1) & Q(hobby__weight__lt=hobbies[hobby] + 1.25))
+                hobby_query = hobby_query | Q(Q(hobby__weight__gte=float(hobbies[hobby]) - 1) & Q(hobby__weight__lt=float(hobbies[hobby]) + 1.25))
 
         # Gathering all post of friends
         for friend in self.account.friend:
@@ -51,7 +51,7 @@ class Feed:
         final_query = Q()
         if query and hobby_query:
             final_query = Q(query & hobby_query)
-        posts = Post.objects.filter(Q(final_query) & Q(created_at__gte=buffer_date)).order_by('-created_at')
+        posts = Post.objects.filter(Q(final_query)).order_by('-created_at')
             # Future Scope
             # .annotate(
             # feed_weight=DecimalField(F('score')*10 + ((1 + (F('hobby_weight') - self.account.primary_weight)

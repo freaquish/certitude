@@ -52,7 +52,7 @@ class Account(AbstractBaseUser, PermissionsMixin):
     places = ArrayField(models.TextField(), default=list)
     influencer = models.BooleanField(default=False)
     influencing_hobby = models.CharField(max_length=20, default='')
-    hobby_map = JSONField(default=dict)
+    hobby_map = JSONField(default=dict) #{"code_name": E(action)}
     primary_hobby = models.CharField(max_length=20, default='')
     primary_weight = models.DecimalField(max_digits=4, decimal_places=2, default=0.00)
     follower_count = models.IntegerField(default=0)
@@ -70,17 +70,6 @@ class Account(AbstractBaseUser, PermissionsMixin):
 
     objects = AccountManager()
 
-    def insert_hobby_map(self, hobby, saveData=True):
-        self.hobby_map[hobby] = self.hobby_map[hobby] + 1 if hobby in self.hobby_map else 1
-        max_hobby = [None,0]
-        for key in self.hobby_map.keys():
-            if self.hobby_map[key] > max_hobby[-1]:
-                max_hobby = [key, self.hobby_map[key]]
-        self.primary_hobby = max_hobby[0]
-        hobby = Hobby.objects.get(pk=max_hobby[0])
-        self.primary_weight = hobby.weight
-        if saveData:
-            self.save()
 
     def insert_coords(self, inserted_coords: Point, saveData=True):
         coord_x, coord_y = inserted_coords

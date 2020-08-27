@@ -2,15 +2,19 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.authentication import TokenAuthentication
+from rest_framework.generics import GenericAPIView
 from rest_framework.authtoken.models import Token
+
+from insight.manager import managers, analyzer
 
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 from django.db.models import QuerySet
+from django.db.models import Q
 from insight.actions.notification_actions import *
 
 from insight.actions.post_actions import authenticated_mirco_actions, general_micro_actions, authenticated_association
-
+from insight.paginator import FeedPaginator
 from insight.models import *
 from insight.actions.search import Search
 from insight.actions.explore import Explorer
@@ -18,6 +22,23 @@ from insight.actions.feed import Feed
 from insight.utils import *
 from insight.serializers import *
 import json
+
+
+"""
+  Identify using token provided in header and returns Account,valid_user
+"""
+
+def identify_token(request):
+    if 'HTTP_AUTHORIZATION' in request.META:
+        token_key = request.META.get('HTTP_AUTHORIZATION')
+        token_key = "".join(token_key.split('Token ')
+                                ) if 'Token' in token_key else token_key
+        tokens = Token.objects.filter(key=token_key)
+        if not tokens:
+            return None, False
+        token = tokens.first()
+        return token.user, True
+
 
 
 # Create your views here..
@@ -214,6 +235,8 @@ class CreatePost(APIView):
             data['hobby'] = hobby
             data['post_id'] = post_id
             post = Post.objects.create(**data)
+            analyze_post = analyzer.Analyzer(account)
+            analyze_post.analyze_create_post(post)
 
             all_tags = post.hastags + post.atags
             if all_tags:
@@ -240,7 +263,6 @@ class CreatePost(APIView):
             # Future Scope
             return Response({"msg": "successful"}, status=status.HTTP_201_CREATED)
         else:
-            print(exception)
             return Response({"msg": "Post Creation Failed. Try again later"}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -472,9 +494,11 @@ class FeedView(APIView):
         self.verify_token()
         if self.valid_user:
             posts, actions = self.feed.extract_feed_known()
+            # print(posts,actions)
             serialized_actions = ActionStoreSerializer(actions).data()
             serialized = PostSerializer(
                 posts,self.user).render_with_action(serialized_actions)
+            # print(serialized)
             return Response({'posts': serialized,
                              'meta': {'avatar': self.user.avatar, 'first_name': self.user.first_name},
                              'notification': 1 if self.user.new_notification else 0}, status=status.HTTP_200_OK)
@@ -545,6 +569,21 @@ class ThirdPartyProfileView(APIView):
         return Response({}, status=status.HTTP_404_NOT_FOUND)
 
 
+class FollowView(APIView):
+    authenticatio_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, requirement: str):
+        user,valid = identify_token(request)
+        if not valid:
+            return Response({}, status=status.HTTP_403_FORBIDDEN)
+        f_manage = managers.ManageFollows(user)
+        followers = f_manage.fetch_followers()
+        following = f_manage.fetch_followings()
+        return Response({"following":following,"followers":followers}, status=status.HTTP_200_OK)        
+
+
+
 class ProfileView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -602,3 +641,43 @@ class ProfileView(APIView):
         serialized_account = ProfileSerializer(user).data
         serialized_account['posts'] = serialized_posts
         return Response(serialized_account, status=status.HTTP_202_ACCEPTED)
+
+
+class PaginatedFeedView(GenericAPIView):
+    permission_classes = [AllowAny]
+    feed = Feed()
+    queryset = feed.feed_anonymous()
+    serializer_class = PostSerializer
+    pagination_class = FeedPaginator
+
+    def get(self, request):
+        user, valid = identify_token(request)
+        if valid:
+            feed = Feed(user)
+            queryset, actions = feed.extract_feed_known()
+            serialized_actions = ActionStoreSerializer(actions).data()
+        length_queryset = len(queryset)
+        page = self.paginate_queryset(queryset)
+
+        if page is not None:
+            serialized = PostSerializer(page,user if valid else None)
+            if valid:
+                result = self.get_paginated_response(serialized.render_with_action(serialized_actions))
+            else:
+                result = self.get_paginated_response(serialized.render())
+            data = result.data
+        else:
+            serialized = PostSerializer(queryset,user if valid else None)
+            if valid:
+               data = serialized.render_with_action(serialized_actions)
+            else:
+                data = serialized.render()
+        # print(len(data))
+        if valid:
+            response = {'meta': {'avatar': user.avatar, 'first_name': user.first_name},"len":length_queryset,
+                             'notification': 1 if user.new_notification else 0}
+            response.update(data)
+            return Response(response)
+        data.update({"len":length_queryset})
+        return Response(data, status=status.HTTP_200_OK)
+

@@ -17,9 +17,11 @@ urlpatterns = [
     path('explore', ExploreView.as_view()),
     path('post/<str:pk>', OnePostView.as_view()),
     path('one_view/<str:iden>', OneLinkView.as_view()),
-    path('feed', FeedView.as_view()),
+    path('feed', PaginatedFeedView.as_view()),
     path('profile/third/<str:username>', ThirdPartyProfileView.as_view()),
     path('profile', ProfileView.as_view()),
     path('profile/associate',ManageAssociation.as_view()),
-    path('post_comment', PostCommentView.as_view())
+    path('post_comment', PostCommentView.as_view()),
+    path('profile/follows/<str:requirement>', FollowView.as_view()),
+    path('test/feed',PaginatedFeedView.as_view())
 ]
