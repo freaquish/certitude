@@ -584,7 +584,7 @@ class FollowView(APIView):
             followers = f_manage.fetch_followers()
         elif requirement == "followings":
             following = f_manage.fetch_followings()
-        return Response({"following":following,"followers":followers}, status=status.HTTP_200_OK)
+        return Response({"followings":following,"followers":followers}, status=status.HTTP_200_OK)
 
 class ThirdPersonFollowView(APIView):
     authenticatio_classes = [TokenAuthentication]
