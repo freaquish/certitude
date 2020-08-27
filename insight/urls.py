@@ -23,5 +23,6 @@ urlpatterns = [
     path('profile/associate',ManageAssociation.as_view()),
     path('post_comment', PostCommentView.as_view()),
     path('profile/follows/<str:requirement>', FollowView.as_view()),
+    path('profile/third/follows/<str:requirement>', ThirdPersonFollowView.as_view()),
     path('test/feed',PaginatedFeedView.as_view())
 ]

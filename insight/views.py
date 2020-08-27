@@ -578,9 +578,31 @@ class FollowView(APIView):
         if not valid:
             return Response({}, status=status.HTTP_403_FORBIDDEN)
         f_manage = managers.ManageFollows(user)
-        followers = f_manage.fetch_followers()
-        following = f_manage.fetch_followings()
-        return Response({"following":following,"followers":followers}, status=status.HTTP_200_OK)        
+        followers = []
+        following = []
+        if requirement == "followers":
+            followers = f_manage.fetch_followers()
+        elif requirement == "followings":
+            following = f_manage.fetch_followings()
+        return Response({"following":following,"followers":followers}, status=status.HTTP_200_OK)
+
+class ThirdPersonFollowView(APIView):
+    authenticatio_classes = [TokenAuthentication]
+    permission_classes = [AllowAny]
+
+    def get(self, request, requirement: str):
+        users = Account.objects.filter(username=request.GET['username'])
+        if not users:
+            return Response({}, status=status.HTTP_403_FORBIDDEN)
+        user = users.first()
+        f_manage = managers.ManageFollows(user)
+        followers = []
+        following = []
+        if requirement == "followers":
+            followers = f_manage.fetch_followers()
+        elif requirement == "followings":
+            following = f_manage.fetch_followings()
+        return Response({"followings":following,"followers":followers}, status=status.HTTP_200_OK)          
 
 
 
