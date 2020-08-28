@@ -32,7 +32,7 @@ class Feed:
             if hobby_query == None:
                 hobby_query = Q(Q(hobby__weight__gte=hobbies[hobby]) & Q(hobby__weight__lte=hobbies[hobby]))
             else:
-                hobby_query = hobby_query | Q(Q(hobby__weight__gte=float(hobbies[hobby]) - 1) & Q(hobby__weight__lt=float(hobbies[hobby]) + 1.25))
+                hobby_query = hobby_query | Q(Q(hobby__weight__gte=float(hobbies[hobby]) - 1) & Q(hobby__weight__lte=float(hobbies[hobby]) + 1.25))
 
         # Gathering all post of friends
         for friend in self.account.friend:

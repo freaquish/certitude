@@ -61,12 +61,15 @@ class MicroActions:
     def commit_action(self, **action):
         print('active')
         if self.user:
-            action_store, created = ActionStore.objects.get_or_create(post_id=self.post.post_id,
-                                                                     account_id=self.user.account_id)
+            action_stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) &
+                                                                     Q(account_id=self.user.account_id))
+            if not action_stores:
+                return None
+            action_store = action_stores.first()
             if 'viewed' in action and action_store.viewed:
                 return None 
             else:
-                print('Im in')
+                print(action)
                 action_store.__class__.objects.update(**action)               
         return None
 
@@ -144,13 +147,12 @@ class MicroActions:
         elif action == "love":
             self.commit_action(loved=True,loved_at=get_ist())
             weight = WEIGHT_LOVE
-            stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) & Q(loved=True))
+
             self.post.action_count['love'] += 1
             self.analyzer.analyze(self.post, WEIGHT_LOVE)
         elif action == "un_love":
             self.commit_action(loved=False)
             weight = 0.0
-            stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) & Q(loved=True))
             if self.post.action_count['love'] > 0:
                 self.post.action_count['love'] -= 1
             else:
@@ -158,27 +160,26 @@ class MicroActions:
         elif action == "share":
             self.commit_action(shared=True)
             weight = WEIGHT_SHARE
-            stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) & Q(shared=True))
+
             self.analyzer.analyze(self.post, WEIGHT_SHARE)
             self.post.action_count['share'] += 1
         elif action == "view":
             self.commit_action(viewed=True,viewed_at=get_ist())
             weight = WEIGHT_VIEW
-            stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) & Q(viewed=True))
+
             self.post.action_count['view'] += 1
             self.analyzer.analyze(self.post, WEIGHT_VIEW)
         elif action == "save":
             self.commit_action(saved=True)
             self.user.saves.append(self.post.post_id)
             weight = WEIGHT_SAVE
-            stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) & Q(saved=True))
+
             self.post.action_count['save'] += 1
             self.analyzer.analyze(self.post, WEIGHT_SAVE)
         elif action == "un_save":
             self.commit_action(saved=False)
             self.user.saves.remove(self.post.post_id)
             weight = 0.0
-            stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) & Q(loved=True))
             if self.post.action_count['save'] > 0:
                 self.post.action_count['save'] -= 1
             else:

@@ -29,8 +29,8 @@ class PostSerializer:
                 return False
             if "text" in asset and len(asset["text"]) == 0:
                 return False
-        return True
-        
+        return True 
+
     def render(self):
         renderd = []
         for post in self.posts:
@@ -51,10 +51,18 @@ class PostSerializer:
             user = self.post.account
             if user:
                 serialized = self.serialize(user)
+                serialized['meta']['actions'] = {'loved':0,'shared':0,'saved':0,'viewed':0}
                 if len(actions) > 0 and self.post.post_id in actions:
+                    action = actions[self.post.post_id]
+                    if serialized['footer']['action_map']['love'] > 0 and action['loved'] == 1:
+                        serialized['meta']['actions']['loved'] = 1
+                    if serialized['footer']['action_map']['view'] > 0 and action['viewed'] == 1:
+                        serialized['meta']['actions']['viewed'] = 1 
+                    if serialized['footer']['action_map']['share'] > 0 and action['saved'] == 1:
+                        serialized['meta']['actions']['shared'] = 1  
+                    if serialized['footer']['action_map']['save'] > 0 and action['saved'] == 1:
+                        serialized['meta']['actions']['saved'] = 1               
                     serialized['meta']['actions'] = actions[self.post.post_id]
-                else:
-                    serialized['meta']['actions'] = {'loved':0,'shared':0,'saved':0,'viewed':0}
                 renderd.append(serialized)
         return renderd
 
