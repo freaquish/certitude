@@ -23,11 +23,11 @@ class PostSerializer:
         else:
             if "images" in asset and len(asset["images"]) == 0:
                 return False
-            if "video" in asset and asset["video"]:
+            if "video" in asset and not asset["video"]:
                 return False
-            if "audio" in asset and asset["audio"]:
+            if "audio" in asset and not asset["audio"]:
                 return False
-            if "text" in asset and asset["text"]:
+            if "text" in asset and not asset["text"]:
                 return False
         return True 
 

@@ -103,6 +103,8 @@ class RegistrationView(APIView):
                 return Response({}, status=status.HTTP_403_FORBIDDEN)
             password = data['password']
             del data['password']
+            data['username'] = data['username'].strip()
+            data['account_id'] = data['account_id'].strip()
             account = Account.objects.create(**data)
             account.set_password(password)
             account.is_active = True

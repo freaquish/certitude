@@ -14,7 +14,7 @@ from insight.manager.analyzer import Analyzer
  The meta score will be updated instantly after the action is fired.
 """
 
-WEIGHT_VIEW: float = 0.25
+WEIGHT_VIEW: float = 0.20
 WEIGHT_LOVE: float = 0.50
 WEIGHT_COMMENT: float = 0.65
 WEIGHT_SAVE: float = 0.80
