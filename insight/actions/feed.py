@@ -51,7 +51,8 @@ class Feed:
         final_query = Q()
         if query and hobby_query:
             final_query = Q(query & hobby_query)
-        posts = Post.objects.filter(Q(final_query)).order_by('-created_at')
+        # posts = Post.objects.filter(Q(final_query)).order_by('-created_at')
+        posts = Post.objects.all()
             # Future Scope
             # .annotate(
             # feed_weight=DecimalField(F('score')*10 + ((1 + (F('hobby_weight') - self.account.primary_weight)

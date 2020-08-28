@@ -15,10 +15,27 @@ class PostSerializer:
             self.post = self.posts[0]
             if len(self.kwarg) > 1:
                 self.account = self.kwarg[1]
-
+    
+    @staticmethod
+    def is_asset_valid(asset):
+        if len(asset) == 0:
+            return False
+        else:
+            if "images" in asset and len(asset["images"]) == 0:
+                return False
+            if "video" in asset and len(asset["video"]) == 0:
+                return False
+            if "audio" in asset and len(asset["audio"]) == 0:
+                return False
+            if "text" in asset and len(asset["text"]) == 0:
+                return False
+        return True
+        
     def render(self):
         renderd = []
         for post in self.posts:
+            if not self.is_asset_valid(post.assets):
+                continue
             self.post = post
             user = self.post.acount
             if user:
