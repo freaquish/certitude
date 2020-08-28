@@ -216,6 +216,8 @@ class CreatePost(APIView):
             self.verify_token()
             if not self.valid_user:
                 return Response({}, status=status.HTTP_403_FORBIDDEN)
+            if len(data['assets']) == 0:
+                return Response({"msg": "successful"}, status=status.HTTP_201_CREATED)
             account = self.user
             is_coord_present = False
             if 'coords' in data:
@@ -273,7 +275,7 @@ class GeneralMicroActionView(APIView):
         token = None
         if 'HTTP_AUTHORIZATION' in request.META:
             token = request.META.get('HTTP_AUTHORIZATION')
-            authenticated_mirco_actions.delay(
+            authenticated_mirco_actions(
                 {"action": request.GET['action'], "pid": request.GET['pid']}, token)
         else:
             general_micro_actions.delay(request.GET)

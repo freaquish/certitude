@@ -34,29 +34,34 @@ class MicroActions:
         else:
             self.user = None
         self.anonymous = anonymous
-
-    def score_post(self,weight=0.0):
-        if self.anonymous:
-            return self.post.score + weight
-        if self.user.primary_hobby:
-            primary_hobby_weight: float = float(Hobby.objects.get(code_name=self.user.primary_hobby).weight)
+    
+    @shared_task
+    def score_post(post_id,user_id,weight=0.0):
+        # if self.anonymous:
+        #     return self.post.score + weight
+        user = Account.objects.get(pk=user_id)
+        post = Post.objects.get(pk=post_id)
+        if user.primary_hobby:
+            primary_hobby_weight: float = float(Hobby.objects.get(code_name=user.primary_hobby).weight)
         else:
             primary_hobby_weight = 0.0
-        post_hobby_weight: float = float(self.post.hobby.weight)
+        post_hobby_weight: float = float(post.hobby.weight)
         multiplier: float = float(
-            self.user.hobby_map[self.post.hobby.code_name] if self.post.hobby.code_name in self.user.hobby_map else 1)
+            user.hobby_map[post.hobby.code_name] if post.hobby.code_name in user.hobby_map else 1)
         hobby_distance: float = 1 + abs(primary_hobby_weight - post_hobby_weight) / multiplier
 
-        # date_distance = abs((get_ist() - self.post.created_at).seconds) + 1
+        # date_distance = abs((get_ist() - post.created_at).seconds) + 1
 
-        comment_score: float = 1.0 + float(WEIGHT_COMMENT * self.post.action_count['comment'])
-        love_score: float =  1.0 + float(WEIGHT_LOVE * self.post.action_count['love'])
-        share_score: float = 1.0 + float(WEIGHT_SHARE * self.post.action_count['share'])
-        save_score: float = 1.0 + float(WEIGHT_SAVE * self.post.action_count['save'])
-        view_score: float = 1.0 + float(WEIGHT_VIEW * self.post.action_count['view'])
+        comment_score: float = 1.0 + float(WEIGHT_COMMENT * post.action_count['comment'])
+        love_score: float =  1.0 + float(WEIGHT_LOVE * post.action_count['love'])
+        share_score: float = 1.0 + float(WEIGHT_SHARE * post.action_count['share'])
+        save_score: float = 1.0 + float(WEIGHT_SAVE * post.action_count['save'])
+        view_score: float = 1.0 + float(WEIGHT_VIEW * post.action_count['view'])
         # print(comment_score,love_score,share_score,save_score,view_score,hobby_distance)
-        return 1 + (comment_score * love_score * share_score * save_score * view_score) / (
+        score =  1 + (comment_score * love_score * share_score * save_score * view_score) / (
                hobby_distance)
+        post.score = score
+        post.save()
 
     def commit_action(self, **action):
         print('active')
@@ -147,7 +152,6 @@ class MicroActions:
         elif action == "love":
             self.commit_action(loved=True,loved_at=get_ist())
             weight = WEIGHT_LOVE
-
             self.post.action_count['love'] += 1
             self.analyzer.analyze(self.post, WEIGHT_LOVE)
         elif action == "un_love":
@@ -189,10 +193,11 @@ class MicroActions:
             weight = WEIGHT_COMMENT
             self.post.action_count['comment'] += 1
             self.analyzer.analyze(self.post, WEIGHT_COMMENT)
-        self.post.score = self.score_post(weight=weight)
         self.post.save()
+        self.score_post.delay(self.post.post_id,self.user.account_id,weight=weight)
+        
 
-@shared_task
+# @shared_task
 def authenticated_mirco_actions(GET,token,req_type='GET'):
     if token:
         token = "".join(token.split('Token ')) if 'Token' in token else token
@@ -207,7 +212,7 @@ def authenticated_mirco_actions(GET,token,req_type='GET'):
             data = json.load(GET)
         elif req_type == "GET":
             data = GET
-        print(f"{account.account_id},{data['action']}")
+        # print(f"{account.account_id},{data['action']}")
         micro_action = MicroActions(data['pid'], account=account)
         micro_action.micro_actions(data['action'], val=data['comment'] if data['action'] == "comment" else '')
         return None
