@@ -12,7 +12,7 @@ class PostSerializer:
         if self.kwarg:
             self.posts = self.kwarg[0]
             # print(self.posts)
-            self.post = self.posts[0]
+            # self.post = self.posts[0]
             if len(self.kwarg) > 1:
                 self.account = self.kwarg[1]
     
