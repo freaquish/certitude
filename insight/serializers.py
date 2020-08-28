@@ -23,11 +23,11 @@ class PostSerializer:
         else:
             if "images" in asset and len(asset["images"]) == 0:
                 return False
-            if "video" in asset and len(asset["video"]) == 0:
+            if "video" in asset and asset["video"]:
                 return False
-            if "audio" in asset and len(asset["audio"]) == 0:
+            if "audio" in asset and asset["audio"]:
                 return False
-            if "text" in asset and len(asset["text"]) == 0:
+            if "text" in asset and asset["text"]:
                 return False
         return True 
 
@@ -47,6 +47,8 @@ class PostSerializer:
         if len(self.posts) == 0:
             return renderd
         for post in self.posts:
+            if not self.is_asset_valid(post.assets):
+                continue
             self.post = post
             user = self.post.account
             if user:
