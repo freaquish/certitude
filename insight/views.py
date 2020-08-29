@@ -681,21 +681,21 @@ class PaginatedFeedView(GenericAPIView):
         if valid:
             feed = Feed(user)
             queryset, actions = feed.extract_feed_known()
-            serialized_actions = ActionStoreSerializer(actions).data()
+            # serialized_actions = ActionStoreSerializer(actions).data()
         length_queryset = len(queryset)
         page = self.paginate_queryset(queryset)
 
         if page is not None:
             serialized = PostSerializer(page,user if valid else None)
             if valid:
-                result = self.get_paginated_response(serialized.render_with_action(serialized_actions))
+                result = self.get_paginated_response(serialized.render_with_action(actions))
             else:
                 result = self.get_paginated_response(serialized.render())
             data = result.data
         else:
             serialized = PostSerializer(queryset,user if valid else None)
             if valid:
-               data = serialized.render_with_action(serialized_actions)
+               data = serialized.render_with_action(actions)
             else:
                 data = serialized.render()
         # print(len(data))

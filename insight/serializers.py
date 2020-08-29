@@ -2,6 +2,8 @@ from .models import *
 from .utils import *
 from rest_framework.serializers import ModelSerializer
 
+from django.db.models import Q
+
 
 class PostSerializer:
 
@@ -54,17 +56,21 @@ class PostSerializer:
             if user:
                 serialized = self.serialize(user)
                 serialized['meta']['actions'] = {'loved':0,'shared':0,'saved':0,'viewed':0}
-                if len(actions) > 0 and self.post.post_id in actions:
-                    action = actions[self.post.post_id]
-                    if serialized['footer']['action_map']['love'] > 0 and action['loved'] == 1:
+                post_actions = actions.filter(Q(account_id=self.account.account_id) & Q(post_id=self.post.post_id))
+                serialized['meta']['actions'] = {'loved':0,'viewed':0, 'shared':0, 'saved':0}
+                if post_actions:
+                    post_action = post_actions.first()
+                    # print(serialized['footer']['action_map']['view'] > 0 and post_action.viewed)
+                    if post_action.loved and serialized['footer']['action_map']['love'] > 0:
                         serialized['meta']['actions']['loved'] = 1
-                    if serialized['footer']['action_map']['view'] > 0 and action['viewed'] == 1:
-                        serialized['meta']['actions']['viewed'] = 1 
-                    if serialized['footer']['action_map']['share'] > 0 and action['saved'] == 1:
-                        serialized['meta']['actions']['shared'] = 1  
-                    if serialized['footer']['action_map']['save'] > 0 and action['saved'] == 1:
-                        serialized['meta']['actions']['saved'] = 1               
-                    serialized['meta']['actions'] = actions[self.post.post_id]
+                    if serialized['footer']['action_map']['view'] > 0 and post_action.viewed:
+                        # print('Im happening')
+                        serialized['meta']['actions']['viewed'] = 1
+                    if serialized['footer']['action_map']['share'] > 0 and post_action.shared:
+                        serialized['meta']['actions']['shared'] = 1 
+                    if serialized['footer']['action_map']['save'] > 0 and post_action.saved:
+                        serialized['meta']['actions']['saved'] = 1 
+                # print(serialized['meta']['actions'])
                 renderd.append(serialized)
         return renderd
 
