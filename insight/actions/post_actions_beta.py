@@ -37,6 +37,8 @@ class MicroActions:
     
     @shared_task
     def score_post(post_id,user_id,weight=0.0):
+        # if self.anonymous:
+        #     return self.post.score + weight
         user = Account.objects.get(pk=user_id)
         post = Post.objects.get(pk=post_id)
         if user.primary_hobby:
@@ -48,11 +50,14 @@ class MicroActions:
             user.hobby_map[post.hobby.code_name] if post.hobby.code_name in user.hobby_map else 1)
         hobby_distance: float = 1 + abs(primary_hobby_weight - post_hobby_weight) / multiplier
 
+        # date_distance = abs((get_ist() - post.created_at).seconds) + 1
+
         comment_score: float = 1.0 + float(WEIGHT_COMMENT * post.action_count['comment'])
         love_score: float =  1.0 + float(WEIGHT_LOVE * post.action_count['love'])
         share_score: float = 1.0 + float(WEIGHT_SHARE * post.action_count['share'])
         save_score: float = 1.0 + float(WEIGHT_SAVE * post.action_count['save'])
         view_score: float = 1.0 + float(WEIGHT_VIEW * post.action_count['view'])
+        # print(comment_score,love_score,share_score,save_score,view_score,hobby_distance)
         score =  1 + (comment_score * love_score * share_score * save_score * view_score) / (
                hobby_distance)
         post.score = score
