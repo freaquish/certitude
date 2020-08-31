@@ -139,6 +139,11 @@ class ActionStore(models.Model):
     saved = models.BooleanField(default=False)
     commented = models.BooleanField(default=True)
 
+    def update(self,**kwargs):
+        for key in kwargs.keys():
+            self.__dict__[key] = kwargs[key]
+        self.save()                     
+
 
 class Notification(models.Model):
     accounts = ArrayField(models.CharField(max_length=50), default=list)

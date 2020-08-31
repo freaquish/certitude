@@ -646,7 +646,7 @@ class ProfileView(APIView):
         if 'coords' in data:
             coords = data['coords']
             del data['coords']
-            user.__class__.objects.insert_coords(json_to_coord(coords))
+            user.insert_coords(json_to_coord(coords))
         if 'places' in data:
             place_list = []
             for place in data['places']:
