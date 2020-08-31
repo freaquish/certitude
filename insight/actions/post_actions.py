@@ -61,16 +61,13 @@ class MicroActions:
     def commit_action(self, **action):
 
         if self.user:
-            action_stores = ActionStore.objects.filter(Q(post_id=self.post.post_id) &
-                                                                     Q(account_id=self.user.account_id))
-            if not action_stores:
-                action_store = ActionStore.objects.create(account_id=self.user.account_id, post_id=self.post.post_id)
-            else:
-                 action_store = action_stores.first()
+            action_store, created = ActionStore.objects.get_or_create(account_id=self.user.account_id, post_id=self.post.post_id)
+            # print(action_store)
             if 'viewed' in action and action_store.viewed:
                 return False
             else:
-                action_store.__class__.objects.update(**action)               
+                action_store.update(**action)
+                print(action_store.loved,'At commit')            
         return True
 
     def commented(self, value):
