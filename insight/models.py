@@ -173,3 +173,13 @@ class Tags(models.Model):
 class Places(models.Model):
     place_name = models.TextField()
     city = models.TextField()
+
+class RankBadge(models.Model):
+    competition_name = models.TextField()
+    date_field = models.DateField(default=get_ist_date())
+    time_field = models.TimeField(default=get_ist_time())
+    hobby = models.ForeignKey(Hobby, on_delete=models.CASCADE, default='')
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, default='')
+    Total = models.IntegerField(max_length=5)
+    rank = models.IntegerField(max_length=5,default=0)
+    score = models.DecimalField(max_digits=5, decimal_places=3, default=0.0)

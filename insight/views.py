@@ -707,3 +707,7 @@ class PaginatedFeedView(GenericAPIView):
         data.update({"len":length_queryset})
         return Response(data, status=status.HTTP_200_OK)
 
+
+# class RankBageView(APIView):
+
+
