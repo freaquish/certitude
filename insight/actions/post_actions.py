@@ -66,8 +66,7 @@ class MicroActions:
             if 'viewed' in action and action_store.viewed:
                 return False
             else:
-                action_store.update(**action)
-                print(action_store.loved,'At commit')            
+                action_store.update(**action)       
         return True
 
     def commented(self, value):
