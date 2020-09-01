@@ -51,7 +51,7 @@ class AssociationEngine:
             else:
                 self.make_friend(target)
 
-    def follow_association(self, target):
+    def follow_association_manager(self, target):
         if target.account_id in self.user.following:
             self.unfollow_target(target)
         else:

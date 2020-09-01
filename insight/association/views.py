@@ -33,5 +33,20 @@ class FriendshipMangaer(APIView):
         # target --> account_id ---> target_account = Account.objects.get(account_id=target)
         # friend_association_manager(target)
         # return Response({}, status=status.HTTP_200_OK)
+        association_engine = AssociationEngine(user)
+        target_account = Account.objects.get(account_id = target)
+        friend_association_manager(target)
+        return Response({}, status=status.HTTP_200_OK)
 
 # Class FollowManager --> follow_manager(target)
+class FollowManager(APIView):
+
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, target: str):
+        user, valid = identify_token(request)
+        association_engine = AssociationEngine(user)
+        target_account = Account.objects.get(account_id=target)
+        follow_association_manager(target)
+        return Response({}, status=status.HTTP_200_OK)
