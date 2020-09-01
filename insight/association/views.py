@@ -4,9 +4,10 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 from django.db.models import QuerySet
 from django.db.models import Q
+from rest_framework.authtoken.models import Token
 from rest_framework.authentication import TokenAuthentication
 
-from .association import AssociationEngine
+from insight.association.association import AssociationEngine
 import json
 
 

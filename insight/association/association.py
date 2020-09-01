@@ -1,4 +1,5 @@
-from insight.models import Account
+from insight.models import Account, Notification
+from django.db.models import Q
 from insight.notifications.manager import NotificationManager
 
 
@@ -41,9 +42,14 @@ class AssociationEngine:
         if target.account_id in self.user.friend:
             self.remove_friend(target)
         else:
-            self.make_friend(target)
-            notification_manager = NotificationManager()
-            notification_manager.create_friend_request(target, self.user)
+            notifications = Notification.objects.filter(
+                Q(to=target) & Q(Q(header=self.user.username) & Q(type='REQU')))
+            if not notifications:
+                notification_manager = NotificationManager()
+                notification_manager.create_friend_request(
+                    to=target, from_=self.user)
+            else:
+                self.make_friend(target)
 
     def follow_association(self, target):
         if target.account_id in self.user.following:

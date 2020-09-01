@@ -46,7 +46,7 @@ class Account(AbstractBaseUser, PermissionsMixin):
     last_name = models.CharField(max_length=30, default='')
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
     # All personal details such as phone number, email, address, school. organisation
     details = JSONField(default=dict)
     comfort_zones_text = ArrayField(models.CharField(
@@ -159,7 +159,8 @@ class Notification(models.Model):
     header = models.TextField()
     created_at = models.DateTimeField(default=get_ist())
     body = models.TextField()
-    to = models.ForeignKey(Account, on_delete=models.CASCADE)
+    to = models.ForeignKey(
+        Account, on_delete=models.CASCADE, default='account_id')
     read = models.BooleanField(default=False)
 
 

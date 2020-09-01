@@ -11,13 +11,11 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 from django.db.models import QuerySet
 from django.db.models import Q
-from insight.actions.notification_actions import *
+
 
 from insight.actions.post_actions import authenticated_mirco_actions, general_micro_actions, authenticated_association
 from insight.paginator import FeedPaginator
 from insight.models import *
-from insight.actions.search import Search
-from insight.actions.explore import Explorer
 from insight.actions.feed import Feed
 from insight.utils import *
 from insight.serializers import *
@@ -28,17 +26,17 @@ import json
   Identify using token provided in header and returns Account,valid_user
 """
 
+
 def identify_token(request):
     if 'HTTP_AUTHORIZATION' in request.META:
         token_key = request.META.get('HTTP_AUTHORIZATION')
         token_key = "".join(token_key.split('Token ')
-                                ) if 'Token' in token_key else token_key
+                            ) if 'Token' in token_key else token_key
         tokens = Token.objects.filter(key=token_key)
         if not tokens:
             return None, False
         token = tokens.first()
         return token.user, True
-
 
 
 # Create your views here..
@@ -74,6 +72,7 @@ def username_available(request):
             return Response({'available': 0}, status=status.HTTP_200_OK)
     else:
         return Response({'available': 0}, status=status.HTTP_200_OK)
+
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -157,16 +156,17 @@ class CreateHobby(APIView):
     def post(self, request):
         if not 'HTTP_AUTHORIZATION' in request.META:
             return Response({}, status=status.HTTP_403_FORBIDDEN)
-        user: Account = Token.objects.get(key=request.META.get('HTTP_AUTHORIZATION')).user
+        user: Account = Token.objects.get(
+            key=request.META.get('HTTP_AUTHORIZATION')).user
         if not (user.is_staff and user.is_superuser):
             return Response({}, status=status.HTTP_401_UNAUTHORIZED)
         data: dict = json.loads(request.body)
-        hobbies=[]
+        hobbies = []
         for hobby in data:
             hobbies.append(hobby)
         Hobby.objects.bulk_create(hobbies)
         hobbies_list = HobbySerializer(Hobby.objects.all(), many=True)
-        return Response({"hobbies_list":hobbies.data}, status=status.HTTP_201_CREATED)
+        return Response({"hobbies_list": hobbies.data}, status=status.HTTP_201_CREATED)
 
 
 class RetrieveHobby(APIView):
@@ -231,10 +231,10 @@ class CreatePost(APIView):
             if 'coords' in data:
                 data['coords'] = json_to_coord(data['coords'])
             data['created_at'] = get_ist()
-            data['action_count']={'love': 0, 'view': 0,
-                          'share': 0, 'save': 0, 'comment': 0}
+            data['action_count'] = {'love': 0, 'view': 0,
+                                    'share': 0, 'save': 0, 'comment': 0}
             data['rank'] = 0
-            data['score']=  0.0
+            data['score'] = 0.0
             data['account'] = account
             data['hobby'] = hobby
             data['post_id'] = post_id
@@ -292,6 +292,7 @@ class GeneralMicroActionView(APIView):
                 {"action": data['action'], "pid": data['pid'], 'comment': data['comment']}, token, req_type='POST')
         return Response({}, status=status.HTTP_200_OK)
 
+
 class ManageAssociation(APIView):
     permission_classes = [AllowAny]
 
@@ -299,7 +300,8 @@ class ManageAssociation(APIView):
         if 'HTTP_AUTHORIZATION' in request.META:
             token = request.META.get('HTTP_AUTHORIZATION')
             if request.GET['action'] == 'follow' or request.GET['action'] == 'un_follow':
-                authenticated_association.delay(token,request.GET['fid'], follow= False if request.GET['action'] == 'un_follow' else True)
+                authenticated_association.delay(
+                    token, request.GET['fid'], follow=False if request.GET['action'] == 'un_follow' else True)
             return Response({}, status=status.HTTP_200_OK)
         else:
             return Response({}, status=status.HTTP_403_FORBIDDEN)
@@ -408,15 +410,16 @@ class ExploreView(APIView):
                 post) for post in self.explorer.explore_anonymous()]
             return Response({"posts": serialized_posts}, status=status.HTTP_200_OK)
 
+
 class PostCommentView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
         comments = PostComment.objects.filter(post_id=request.GET['pid'])
         if not comments:
-            return Response({"comments":[]},status=status.HTTP_200_OK)
+            return Response({"comments": []}, status=status.HTTP_200_OK)
         comment = comments.first()
-        return Response({"comments":comment.comments}, status=status.HTTP_200_OK)
+        return Response({"comments": comment.comments}, status=status.HTTP_200_OK)
 
 
 class OnePostView(APIView):
@@ -426,19 +429,22 @@ class OnePostView(APIView):
        mapped to url /post/<pk:post>
        will find the post and comment data and sent to user
     """
-    def get_user_action(self,request,pid):
+
+    def get_user_action(self, request, pid):
         if 'HTTP_AUTHORIZATION' in request.META:
-            tokens = Token.objects.filter(key=request.META.get('HTTP_AUTHORIZATION'))
+            tokens = Token.objects.filter(
+                key=request.META.get('HTTP_AUTHORIZATION'))
             if not tokens:
-                return {'loved':0,'viewed':0,'shared':0,'saved':0}
+                return {'loved': 0, 'viewed': 0, 'shared': 0, 'saved': 0}
             token = tokens.first()
             user = token.user
-            action_store = ActionStore.objects.filter(Q(post_id=pid)&Q(account_id=user.account_id))
+            action_store = ActionStore.objects.filter(
+                Q(post_id=pid) & Q(account_id=user.account_id))
             if action_store:
                 actions = action_store.first()
-                return {'loved':actions.loved,'viewed':actions.viewed,'shared':actions.shared,'saved':actions.saved}
+                return {'loved': actions.loved, 'viewed': actions.viewed, 'shared': actions.shared, 'saved': actions.saved}
         else:
-            return {'loved':0,'viewed':0,'shared':0,'saved':0}
+            return {'loved': 0, 'viewed': 0, 'shared': 0, 'saved': 0}
 
     def get(self, request, pk):
         post = Post.objects.filter(post_id=pk)
@@ -468,7 +474,7 @@ class OnePostView(APIView):
                     "created": f'{((get_ist() - post.created_at).seconds / 3600)}h',
                     "score": post.score,
                     "editor": post.editor,
-                    "actions": self.get_user_action(request,pk)
+                    "actions": self.get_user_action(request, pk)
                 }
             }
             return Response(serialized_post, status=status.HTTP_200_OK)
@@ -501,7 +507,7 @@ class FeedView(APIView):
             # print(posts,actions)
             serialized_actions = ActionStoreSerializer(actions).data()
             serialized = PostSerializer(
-                posts,self.user).render_with_action(serialized_actions)
+                posts, self.user).render_with_action(serialized_actions)
             # print(serialized)
             return Response({'posts': serialized,
                              'meta': {'avatar': self.user.avatar, 'first_name': self.user.first_name},
@@ -578,7 +584,7 @@ class FollowView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, requirement: str):
-        user,valid = identify_token(request)
+        user, valid = identify_token(request)
         if not valid:
             return Response({}, status=status.HTTP_403_FORBIDDEN)
         f_manage = managers.ManageFollows(user)
@@ -588,7 +594,8 @@ class FollowView(APIView):
             followers = f_manage.fetch_followers()
         elif requirement == "followings":
             following = f_manage.fetch_followings()
-        return Response({"followings":following,"followers":followers}, status=status.HTTP_200_OK)
+        return Response({"followings": following, "followers": followers}, status=status.HTTP_200_OK)
+
 
 class ThirdPersonFollowView(APIView):
     authenticatio_classes = [TokenAuthentication]
@@ -606,8 +613,7 @@ class ThirdPersonFollowView(APIView):
             followers = f_manage.fetch_followers()
         elif requirement == "followings":
             following = f_manage.fetch_followings()
-        return Response({"followings":following,"followers":followers}, status=status.HTTP_200_OK)          
-
+        return Response({"followings": following, "followers": followers}, status=status.HTTP_200_OK)
 
 
 class ProfileView(APIView):
@@ -656,7 +662,8 @@ class ProfileView(APIView):
             del data['places']
         try:
             print(data)
-            user.__dict__.update(**data)  #using stone way because object.update isn't working
+            # using stone way because object.update isn't working
+            user.__dict__.update(**data)
             user.save()
         except Exception as e:
             return Response({}, status=status.HTTP_400_BAD_REQUEST)
@@ -686,28 +693,27 @@ class PaginatedFeedView(GenericAPIView):
         page = self.paginate_queryset(queryset)
 
         if page is not None:
-            serialized = PostSerializer(page,user if valid else None)
+            serialized = PostSerializer(page, user if valid else None)
             if valid:
-                result = self.get_paginated_response(serialized.render_with_action(actions))
+                result = self.get_paginated_response(
+                    serialized.render_with_action(actions))
             else:
                 result = self.get_paginated_response(serialized.render())
             data = result.data
         else:
-            serialized = PostSerializer(queryset,user if valid else None)
+            serialized = PostSerializer(queryset, user if valid else None)
             if valid:
-               data = serialized.render_with_action(actions)
+                data = serialized.render_with_action(actions)
             else:
                 data = serialized.render()
         # print(len(data))
         if valid:
-            response = {'meta': {'avatar': user.avatar, 'first_name': user.first_name},"len":length_queryset,
-                             'notification': 1 if user.new_notification else 0}
+            response = {'meta': {'avatar': user.avatar, 'first_name': user.first_name}, "len": length_queryset,
+                        'notification': 1 if user.new_notification else 0}
             response.update(data)
             return Response(response)
-        data.update({"len":length_queryset})
+        data.update({"len": length_queryset})
         return Response(data, status=status.HTTP_200_OK)
 
 
 # class RankBageView(APIView):
-
-
