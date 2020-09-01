@@ -45,7 +45,7 @@ class AssociationEngine:
             notification_manager = NotificationManager()
             notification_manager.create_friend_request(target, self.user)
 
-    def follow_association(self, target):
+    def follow_association_manager(self, target):
         if target.account_id in self.user.following:
             self.unfollow_target(target)
         else:
