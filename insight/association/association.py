@@ -37,23 +37,13 @@ class AssociationEngine:
         target.save()
         self.user.save()
 
-    """
-      friend_association_manager(self, target):
-       1. Check target.account_id in self.user.friend : True --> self.remove_friend(target)
-       2. False self.make_friend(target)
-
-       follow_association
-       User --> Target
-       1. target.faccount_id in self.user.following: True --> self.unfollow(targe
-    """
-
     def friend_association_manager(self, target):
         if target.account_id in self.user.friend:
             self.remove_friend(target)
         else:
             self.make_friend(target)
-
-
+            notification_manager = NotificationManager()
+            notification_manager.create_friend_request(target, self.user)
 
     def follow_association(self, target):
         if target.account_id in self.user.following:

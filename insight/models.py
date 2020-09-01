@@ -153,6 +153,7 @@ class ActionStore(models.Model):
 
 
 class Notification(models.Model):
+    noti_id = models.CharField(max_length=35, primary_key=True, default='')
     type = models.CharField(max_length=5, default='ALERT')
     meta = JSONField(default=dict)
     header = models.TextField()
