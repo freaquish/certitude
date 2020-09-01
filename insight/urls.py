@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 from .views import *
 
 urlpatterns = [
@@ -24,5 +24,6 @@ urlpatterns = [
     path('post_comment', PostCommentView.as_view()),
     path('profile/follows/<str:requirement>', FollowView.as_view()),
     path('profile/third/follows/<str:requirement>', ThirdPersonFollowView.as_view()),
-    path('test/feed',PaginatedFeedView.as_view())
+    path('test/feed', PaginatedFeedView.as_view()),
+    path('association/', include('association.urls')),
 ]
