@@ -13,7 +13,7 @@ class NotificationManager:
         notification = Notification.objects.create(
             noti_id=f'{token_urlsafe(20)}__{from_.account_id[6:]}',
             type="REQU",
-            meta={"avatar": from_.avatar},
+            meta={"avatar": from_.avatar, "account_id": from_.account_id},
             header=from_.username,
             body=f'{from_.first_name} {from_.last_name}',
             to=to,

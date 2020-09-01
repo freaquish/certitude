@@ -22,7 +22,8 @@ class NotificationSerializer:
             "timedelta": self.get_time_string(notification.created_at),
             "meta": notification.meta,
             "header": notification.header,
-            "body": notification.body
+            "body": notification.body,
+            "noti_id": notification.noti_id
         }
 
     def render(self):

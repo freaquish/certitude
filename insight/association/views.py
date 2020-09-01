@@ -4,7 +4,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 from django.db.models import QuerySet
 from django.db.models import Q
-from insight.models import Account
+from insight.models import Account, Notification
 from rest_framework.authtoken.models import Token
 from rest_framework.authentication import TokenAuthentication
 
@@ -41,9 +41,16 @@ class AcceptFriendRequest(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, noti):
-        user, valid = identify_token(request)
+        target, valid = identify_token(request)
+        notifications = Notification.objects.filter(noti_id=noti)
+        if not notifications:
+            return Response({}, status=status.HTTP_404_NOT_FOUND)
+        notification = notifications.first()
+        notification.read = True
+        notification.save()
+        user = Account.objects.get(pk=notification.meta['account_id'])
         association_engine = AssociationEngine(user)
-        association_engine.accept_friend_request(noti)
+        association_engine.accept_friend_request(target)
         return Response({}, status=status.HTTP_200_OK)
 
 

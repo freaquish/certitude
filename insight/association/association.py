@@ -49,13 +49,8 @@ class AssociationEngine:
                 notification_manager.create_friend_request(
                     to=target, from_=self.user)
 
-    def accept_friend_request(self, noti: str):
-        notifications = Notification.objects.filter(noti_id=noti)
-        if notifications:
-            notification = notifications.first()
-            notification.read = True
-            notification.save()
-            self.make_friend(self.user)
+    def accept_friend_request(self, target: Account):
+        self.make_friend(target)
 
     def follow_association_manager(self, target: Account):
         if target.account_id in self.user.following:
