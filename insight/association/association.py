@@ -46,3 +46,17 @@ class AssociationEngine:
        User --> Target
        1. target.faccount_id in self.user.following: True --> self.unfollow(targe
     """
+
+    def friend_association_manager(self, target):
+        if target.account_id in self.user.friend:
+            self.remove_friend(target)
+        else:
+            self.make_friend(target)
+
+
+
+    def follow_association(self, target):
+        if target.account_id in self.user.following:
+            self.unfollow_target(target)
+        else:
+            self.follow_target(target)
