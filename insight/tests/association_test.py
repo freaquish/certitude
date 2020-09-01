@@ -33,10 +33,22 @@ class FirendshipTest(APITestCase):
     def test_friendship_creation(self):
         self.init()
         user_friend_count, target_friend_count = self.user.friend_count, self.target.friend_count
+        print(self.user_token, user_friend_count, target_friend_count)
         response = self.client.get(
             f'/api/v1/association/friend/{self.target.account_id}')
         print(response.data)
         self.assertEqual(response.status_code, 200)
+
+        # Fetching notifications
+
+        self.client.credentials(
+            HTTP_AUTHORIZATION='Token ' + self.target_token)
+        response = self.client.get(
+            f'/api/v1/notification/all')
+        self.assertEqual(response.status_code, 200)
+        notif = response.data['notifications']['noti_id']
+        response = self
+
         self.user.refresh_from_db()
         self.target.refresh_from_db()
         self.assertEqual(self.target.account_id in self.user.friend, True)
@@ -44,11 +56,11 @@ class FirendshipTest(APITestCase):
         self.assertEqual(self.target.friend_count, target_friend_count + 1)
 
     def test_unfriend(self):
+        self.init()
         user_friend_count, target_friend_count = self.user.friend_count, self.target.friend_count
         response = self.client.get(
             f'/api/v1/association/friend/{self.target.account_id}')
         self.assertEqual(response.status_code, 200)
-        self.user.refresh_from_db()
         self.user.refresh_from_db()
         self.target.refresh_from_db()
         self.assertEqual(self.target.account_id in self.user.friend, False)

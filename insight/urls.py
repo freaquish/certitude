@@ -27,4 +27,5 @@ urlpatterns = [
          ThirdPersonFollowView.as_view()),
     path('test/feed', PaginatedFeedView.as_view()),
     path('association/', include('insight.association.urls')),
+    path('notification/', include('insight.notifications.urls')),
 ]

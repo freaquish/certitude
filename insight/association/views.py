@@ -4,6 +4,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 from django.db.models import QuerySet
 from django.db.models import Q
+from insight.models import Account
 from rest_framework.authtoken.models import Token
 from rest_framework.authentication import TokenAuthentication
 
@@ -23,22 +24,29 @@ def identify_token(request):
         return token.user, True
 
 
-class FriendshipMangaer(APIView):
+class FriendshipManager(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, target: str):
         user, valid = identify_token(request)
-        # Create association_engine = AssociationEngine(user)
-        # target --> account_id ---> target_account = Account.objects.get(account_id=target)
-        # friend_association_manager(target)
-        # return Response({}, status=status.HTTP_200_OK)
         association_engine = AssociationEngine(user)
-        target_account = Account.objects.get(account_id = target)
-        friend_association_manager(target)
+        target_account: Account = Account.objects.get(account_id=target)
+        association_engine.friend_association_manager(target_account)
         return Response({}, status=status.HTTP_200_OK)
 
-# Class FollowManager --> follow_manager(target)
+
+class AcceptFriendRequest(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, noti):
+        user, valid = identify_token(request)
+        association_engine = AssociationEngine(user)
+        association_engine.accept_friend_request(noti)
+        return Response({}, status=status.HTTP_200_OK)
+
+
 class FollowManager(APIView):
 
     authentication_classes = [TokenAuthentication]
@@ -48,5 +56,5 @@ class FollowManager(APIView):
         user, valid = identify_token(request)
         association_engine = AssociationEngine(user)
         target_account = Account.objects.get(account_id=target)
-        follow_association_manager(target)
+        association_engine.follow_association_manager(target_account)
         return Response({}, status=status.HTTP_200_OK)
