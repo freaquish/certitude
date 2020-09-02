@@ -5,10 +5,12 @@ from rest_framework import status
 from django.db.models import QuerySet
 from django.db.models import Q
 from insight.models import Account, Notification
+from insight.models import *
 from rest_framework.authtoken.models import Token
 from rest_framework.authentication import TokenAuthentication
 
-from insight.association.association import AssociationEngine
+from insight.association import association
+from insight.association.association import AssociationEngine, ManageFriends
 import json
 
 
@@ -65,3 +67,35 @@ class FollowManager(APIView):
         target_account = Account.objects.get(account_id=target)
         association_engine.follow_association_manager(target_account)
         return Response({}, status=status.HTTP_200_OK)
+
+
+class FriendView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+
+    def get(self, request, requirement: str):
+        user, valid = identify_token(request)
+        if not valid:
+            return Response({}, status=status.HTTP_403_FORBIDDEN)
+        f_friends = association.ManageFriends(user)
+
+        if requirement == "friends":
+            friends = f_friends.fetch_friends()
+        return Response({"friends": friends}, status = status.HTTP_200_OK)
+
+class ThirdPersonFriendView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [AllowAny]
+
+
+    def get(self, request, requirement: str):
+        users = Account.objects.filter(username=request.GET['username'])
+        if not users:
+            return Response({}, status=status.HTTP_403_FORBIDDEN)
+        userr = users.first()
+        f_friends = association.ManageFriends(user)
+
+        if requirement == "friends":
+            friends = f_friends.fetch_friends()
+        return Response({"friends": friends}, status = status.HTTP_200_OK)

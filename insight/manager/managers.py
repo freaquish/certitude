@@ -1,6 +1,6 @@
 from insight.models import Account
 from django.db.models import Q
-from insight.serializers import FollowSerializer
+from insight.serializers import FollowSerializer, FriendListSerializer
 
 class ManageFollows:
 
@@ -28,3 +28,5 @@ class ManageFollows:
         following = Account.objects.filter(query)
         serialized = FollowSerializer(following)
         return serialized.render()
+
+
