@@ -73,7 +73,6 @@ class FriendView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
-
     def get(self, request, requirement: str):
         user, valid = identify_token(request)
         if not valid:
@@ -82,20 +81,20 @@ class FriendView(APIView):
 
         if requirement == "friends":
             friends = f_friends.fetch_friends()
-        return Response({"friends": friends}, status = status.HTTP_200_OK)
+        return Response({"friends": friends}, status=status.HTTP_200_OK)
+
 
 class ThirdPersonFriendView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [AllowAny]
 
-
     def get(self, request, requirement: str):
         users = Account.objects.filter(username=request.GET['username'])
         if not users:
             return Response({}, status=status.HTTP_403_FORBIDDEN)
-        userr = users.first()
+        user = users.first()
         f_friends = association.ManageFriends(user)
 
         if requirement == "friends":
             friends = f_friends.fetch_friends()
-        return Response({"friends": friends}, status = status.HTTP_200_OK)
+        return Response({"friends": friends}, status=status.HTTP_200_OK)

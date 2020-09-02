@@ -9,7 +9,7 @@ class PostSerializer:
 
     def __init__(self, *kwarg):
         self.kwarg = kwarg
-        self.post= None
+        self.post = None
         self.account = None
         if self.kwarg:
             self.posts = self.kwarg[0]
@@ -17,7 +17,7 @@ class PostSerializer:
             # self.post = self.posts[0]
             if len(self.kwarg) > 1:
                 self.account = self.kwarg[1]
-    
+
     @staticmethod
     def is_asset_valid(asset):
         if len(asset) == 0:
@@ -31,7 +31,7 @@ class PostSerializer:
                 return False
             if "text" in asset and not asset["text"]:
                 return False
-        return True 
+        return True
 
     def render(self):
         renderd = []
@@ -45,7 +45,7 @@ class PostSerializer:
         return renderd
 
     def render_with_action(self, actions):
-        renderd =[]
+        renderd = []
         if len(self.posts) == 0:
             return renderd
         for post in self.posts:
@@ -55,8 +55,10 @@ class PostSerializer:
             user = self.post.account
             if user:
                 serialized = self.serialize(user)
-                serialized['meta']['actions'] = {'loved':0,'shared':0,'saved':0,'viewed':0}
-                post_actions = actions.filter(Q(account_id=self.account.account_id) & Q(post_id=self.post.post_id))
+                serialized['meta']['actions'] = {
+                    'loved': 0, 'shared': 0, 'saved': 0, 'viewed': 0}
+                post_actions = actions.filter(
+                    Q(account_id=self.account.account_id) & Q(post_id=self.post.post_id))
                 if post_actions:
                     post_action = post_actions.first()
                     print(post_actions, post_action.loved)
@@ -67,16 +69,17 @@ class PostSerializer:
                         # print('Im happening')
                         serialized['meta']['actions']['viewed'] = 1
                     if serialized['footer']['action_map']['share'] > 0 and post_action.shared:
-                        serialized['meta']['actions']['shared'] = 1 
+                        serialized['meta']['actions']['shared'] = 1
                     if serialized['footer']['action_map']['save'] > 0 and post_action.saved:
-                        serialized['meta']['actions']['saved'] = 1 
+                        serialized['meta']['actions']['saved'] = 1
                 # print(serialized['meta']['actions'])
                 renderd.append(serialized)
         return renderd
 
-    def serialize(self,user, *delete_keys):
-        #check if account is following the user
-        data = {'created_at': self.post.created_at,'header': {}, 'body': {}, 'caption': {}, 'footer': {}, 'meta': {}, 'post_id': self.post.post_id}
+    def serialize(self, user, *delete_keys):
+        # check if account is following the user
+        data = {'created_at': self.post.created_at, 'header': {}, 'body': {
+        }, 'caption': {}, 'footer': {}, 'meta': {}, 'post_id': self.post.post_id}
         data['meta']['score'] = self.post.score
         data['meta']['created'] = f'{((get_ist() - self.post.created_at).seconds / 3600)}h'
         data['meta']['editor'] = self.post.editor
@@ -111,14 +114,15 @@ class ProfileSerializer(ModelSerializer):
         model = Account
         fields = ('account_id', 'avatar', 'first_name', 'last_name', 'username',
                   'influencer', 'hobby_map', 'follower_count', 'following_count', 'friend_count',
-                  'description','places'
+                  'description', 'places'
                   )
 
 
 class ExplorePostSerializer(ModelSerializer):
     class Meta:
         model = Post
-        fields = ('post_id', 'assets', 'captions', 'score', 'hobby', 'created_at', 'editor')
+        fields = ('post_id', 'assets', 'captions',
+                  'score', 'hobby', 'created_at', 'editor')
 
 
 class ActionStoreSerializer:
@@ -140,49 +144,3 @@ class ActionStoreSerializer:
         for action in self.actions:
             json[action.post_id] = self._render(action)
         return json
-
-
-
-class FollowSerializer:
-    def __init__(self, follows):
-        self.follows = follows
-    
-    @staticmethod
-    def _serialize(follow):
-        data = {}
-        data["account_id"] = follow.account_id 
-        data["username"] = follow.username
-        data["avatar"] = follow.avatar 
-        data["first_name"] = follow.first_name
-        data["last_name"] = follow.last_name
-        return data
-    
-    def render(self):
-        rendered = []
-        for follow in self.follows:
-            rendered.append(self._serialize(follow))
-        return rendered
-
-
-class FriendListSerializer:
-    def __init__(self, friends,user = None):
-        self.friends = friends
-        self.user = user
-
-
-    
-    def _serialize(self,friend):
-        data = {}
-        data['account_id'] = friend.account_id
-        data['username'] = friend.username
-        data['avatar'] = friend.avatar
-        data['first_name'] = friend.first_name
-        data['last_name'] = friend.last_name
-        data['is_friend'] = 1 if self.user and friend.accound_id in self.user.friend else 0
-        return data
-
-    def render(self):
-        rendered = []
-        for friend in self.friends:
-            rendered.append(self._serialize(friend))
-        return rendered
