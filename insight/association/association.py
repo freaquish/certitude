@@ -1,7 +1,7 @@
 from insight.models import Account, Notification
 from django.db.models import Q
 from insight.notifications.manager import NotificationManager
-from insight.association.serializer import FriendListSerializer
+from insight.association.serializer import FriendListSerializer, FollowSerializer
 
 
 class AssociationEngine:
@@ -73,4 +73,33 @@ class ManageFriends:
             return []
         serialized = FriendListSerializer(
             friends, user=self.user if not self.is_third_party else None)
+        return serialized.render()
+
+
+class ManageFollows:
+
+    def __init__(self, user: Account):
+        self.user = user
+
+    def fetch_followers(self):
+        followers = Account.objects.filter(
+            following__contains=[self.user.account_id])
+        if not followers:
+            return []
+        serialized = FollowSerializer(followers)
+        return serialized.render()
+
+    def fetch_followings(self):
+        query = None
+        following = self.user.following
+        for follow in following:
+            if not query:
+                query = Q(account_id=follow)
+            else:
+                query = query | Q(account_id=follow)
+
+        if not query:
+            return []
+        following = Account.objects.filter(query)
+        serialized = FollowSerializer(following)
         return serialized.render()

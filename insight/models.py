@@ -188,6 +188,7 @@ class Tags(models.Model):
 class Places(models.Model):
     place_name = models.TextField()
     city = models.TextField()
+    coords = gis_models.PointField(default=Point(0, 0), srid=4326)
 
 
 class RankBadge(models.Model):

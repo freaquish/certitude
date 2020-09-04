@@ -9,8 +9,7 @@ from insight.models import *
 from rest_framework.authtoken.models import Token
 from rest_framework.authentication import TokenAuthentication
 
-from insight.association import association
-from insight.association.association import AssociationEngine, ManageFriends
+from insight.association.association import AssociationEngine, ManageFriends, ManageFollows
 import json
 
 
@@ -77,7 +76,7 @@ class FriendView(APIView):
         user, valid = identify_token(request)
         if not valid:
             return Response({}, status=status.HTTP_403_FORBIDDEN)
-        f_friends = association.ManageFriends(user)
+        f_friends = ManageFriends(user)
 
         if requirement == "friends":
             friends = f_friends.fetch_friends()
@@ -93,8 +92,45 @@ class ThirdPersonFriendView(APIView):
         if not users:
             return Response({}, status=status.HTTP_403_FORBIDDEN)
         user = users.first()
-        f_friends = association.ManageFriends(user)
+        f_friends = ManageFriends(user)
 
         if requirement == "friends":
             friends = f_friends.fetch_friends()
         return Response({"friends": friends}, status=status.HTTP_200_OK)
+
+
+class FollowView(APIView):
+    authenticatio_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, requirement: str):
+        user, valid = identify_token(request)
+        if not valid:
+            return Response({}, status=status.HTTP_403_FORBIDDEN)
+        f_manage = ManageFollows(user)
+        followers = []
+        following = []
+        if requirement == "followers":
+            followers = f_manage.fetch_followers()
+        elif requirement == "followings":
+            following = f_manage.fetch_followings()
+        return Response({"followings": following, "followers": followers}, status=status.HTTP_200_OK)
+
+
+class ThirdPersonFollowView(APIView):
+    authenticatio_classes = [TokenAuthentication]
+    permission_classes = [AllowAny]
+
+    def get(self, request, requirement: str):
+        users = Account.objects.filter(username=request.GET['username'])
+        if not users:
+            return Response({}, status=status.HTTP_403_FORBIDDEN)
+        user = users.first()
+        f_manage = ManageFollows(user)
+        followers = []
+        following = []
+        if requirement == "followers":
+            followers = f_manage.fetch_followers()
+        elif requirement == "followings":
+            following = f_manage.fetch_followings()
+        return Response({"followings": following, "followers": followers}, status=status.HTTP_200_OK)

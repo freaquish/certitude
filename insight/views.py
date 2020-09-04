@@ -5,7 +5,7 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.generics import GenericAPIView
 from rest_framework.authtoken.models import Token
 
-from insight.manager import managers, analyzer
+from insight.manager import analyzer
 
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
@@ -116,37 +116,6 @@ class RegistrationView(APIView):
         except KeyError as key_error:
             print(key_error)
             return Response({"error": "Incomplete data"}, status=status.HTTP_406_NOT_ACCEPTABLE)
-
-
-class ResetPassword(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        data = json.loads(request.body)
-        account = Account.objects.filter(account_id=data['account_id'])
-        if not account:
-            return Response({"error": "No Associated account Found"}, status=status.HTTP_404_NOT_FOUND)
-        account = account.first()
-        account.set_password(data['password'])
-        if 'coords' in data.keys():
-            account.objects.insert_coords(json_to_coord(data['coords']))
-        account.save()
-        token = Token.objects.get(user=account)
-        return Response({'token': token.key, 'first_name': account.first_name, 'avatar': account.avatar},
-                        status=status.HTTP_202_ACCEPTED)
-
-
-class SharedPost(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request):
-        data: dict = request.GET
-        posts = Post.objects.filter(post_id=data['post'])
-        if not posts:
-            return Response({"error": "No Post Found"}, status=status.HTTP_404_NOT_FOUND)
-        post = posts.first()
-        serialized = PostSerializer(post).serialize()
-        return Response(serialized, status=status.HTTP_200_OK)
 
 
 class CreateHobby(APIView):
@@ -307,121 +276,6 @@ class ManageAssociation(APIView):
             return Response({}, status=status.HTTP_403_FORBIDDEN)
 
 
-class MicroNotificationActions(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        # ? rid={requested_id: person to be requested}, uid={requesting_id: person who is requesting}
-        data: dict = request.GET
-        action = data['action']
-        noti_actions = NotificationActions(
-            requested_id=data['rid'], requesting_id=data['uid'])
-        if action == NOTIFICATION_FRIEND_REQUEST:
-            noti_actions.send_friend_request()
-        elif action == NOTIFICATION_FRIEND_RESPONSE:
-            # if flag ==1 accepted , 0 declined
-            if data['flag'] == 1:
-                noti_actions.accept_friend_request()
-            else:
-                noti_actions.decline_friend_request()
-        elif action == UNFRIEND:
-            noti_actions.unfriend_user()
-        elif action == STARTED_FOLLOWING:
-            noti_actions.follow_user()
-        elif action == UNFOLLOW:
-            noti_actions.unfollow_user()
-        if data['rr'] == 1:  # return_required={int}
-            account = Account.objects.get(account_id=data['rid'])
-            serialized = ProfileSerializer(account)
-            return Response(serialized.data, status=status.HTTP_202_ACCEPTED)
-        else:
-            return Response({}, status=status.HTTP_202_ACCEPTED)
-
-
-class SearchView(APIView):
-    permission_classes = [AllowAny]
-
-    def get_queryset(self):
-        data = self.request.GET
-        token = None
-        if 'HTTP_AUTHORIZATION' in self.request.META:
-            token_key = self.request.META.get('HTTP_AUTHORIZATION')
-            token_key = "".join(token_key.split('Token ')
-                                ) if 'Token' in token_key else token_key
-            token = Token.objects.filter(key=token_key)
-
-        if token:
-            self.account = token.first().user
-            self.search = Search(account=self.account, query=data['q'])
-            return self.search.search_tags(), self.search.search_hobby(), self.search.search_accounts()
-        else:
-            self.search = Search(query=data['q'])
-            return self.search.search_tags(), self.search.search_hobby(), self.search.search_accounts()
-
-    def get(self, request):
-        self.request = request
-        tags, hobbies, accounts = self.get_queryset()
-        serialized_accounts = [{'account_id': account.account_id, 'username': account.username,
-                                'first_name': account.first_name, 'last_name': account.last_name,
-                                'influnecer': 1 if account.influencer else 0, 'hobby': account.primary_hobby,
-                                'avatar': account.avatar,
-                                'following': 1 if self.account and self.account.account_id in account.following else 0,
-                                'friend': 1 if self.account and self.account.account_id in account.friend else 0
-                                } for account in accounts]
-        serialized_tags = [tag.tag for tag in tags]
-        serialized_hobby = [
-            {'name': hobby.name, 'code_name': hobby.code_name} for hobby in hobbies]
-        return Response({'tags': serialized_tags, 'hobbies': serialized_hobby, 'accounts': serialized_accounts},
-                        status=status.HTTP_200_OK)
-
-
-class ExploreView(APIView):
-    permission_classes = [AllowAny]
-
-    def verify_token(self):
-        if 'HTTP_AUTHORIZATION' in self.request.META:
-            token_key = self.request.META.get('HTTP_AUTHORIZATION')
-            token_key = "".join(token_key.split('Token ')
-                                ) if 'Token' in token_key else token_key
-            token = Token.objects.filter(key=token_key)
-            self.explorer = Explorer(token.user)
-            self.valid_user = True
-        else:
-            self.explorer = Explorer()
-            self.valid_user = False
-
-    def get(self, request):
-        self.request = request
-        self.verify_token()
-        if self.valid_user:
-            data = self.request.GET
-            if 'hobby' in data:
-                posts = self.explorer.filter_hobby(data['hobby'])
-                serialized_posts = [
-                    self.explorer.serialize_post(post) for post in posts]
-                return Response({"posts": serialized_posts}, status=status.HTTP_200_OK)
-            else:
-                serialized_posts = [self.explorer.serialize_post(
-                    post) for post in self.explorer.explore_known()]
-                return Response({"posts": serialized_posts}, status=status.HTTP_200_OK)
-        else:
-            serialized_posts = [self.explorer.serialize_post(
-                post) for post in self.explorer.explore_anonymous()]
-            return Response({"posts": serialized_posts}, status=status.HTTP_200_OK)
-
-
-class PostCommentView(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request):
-        comments = PostComment.objects.filter(post_id=request.GET['pid'])
-        if not comments:
-            return Response({"comments": []}, status=status.HTTP_200_OK)
-        comment = comments.first()
-        return Response({"comments": comment.comments}, status=status.HTTP_200_OK)
-
-
 class OnePostView(APIView):
     permission_classes = [AllowAny]
 
@@ -482,67 +336,6 @@ class OnePostView(APIView):
             return Response({}, status=status.HTTP_404_NOT_FOUND)
 
 
-class FeedView(APIView):
-    permission_classes = [AllowAny]
-
-    def verify_token(self):
-        if 'HTTP_AUTHORIZATION' in self.request.META:
-            token_key = self.request.META.get('HTTP_AUTHORIZATION')
-            token_key = "".join(token_key.split('Token ')
-                                ) if 'Token' in token_key else token_key
-            # print(token_key)
-            token = Token.objects.get(key=token_key)
-            self.feed = Feed(token.user)
-            self.user: Account = token.user
-            self.valid_user = True
-        else:
-            self.feed = Feed()
-            self.valid_user = False
-
-    def get(self, request):
-        self.request = request
-        self.verify_token()
-        if self.valid_user:
-            posts, actions = self.feed.extract_feed_known()
-            # print(posts,actions)
-            serialized_actions = ActionStoreSerializer(actions).data()
-            serialized = PostSerializer(
-                posts, self.user).render_with_action(serialized_actions)
-            # print(serialized)
-            return Response({'posts': serialized,
-                             'meta': {'avatar': self.user.avatar, 'first_name': self.user.first_name},
-                             'notification': 1 if self.user.new_notification else 0}, status=status.HTTP_200_OK)
-        else:
-            posts = self.feed.feed_anonymous()
-            serialized = PostSerializer(posts).render()
-            return Response({'posts': serialized}, status=status.HTTP_200_OK)
-
-
-class OneLinkView(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request, iden: str):
-        delim = ''
-        d_type = ''
-        query = None
-        if 'h__' in iden:
-            delim = iden.replace('h__', '', 1)
-            d_type = 'hastag'
-            query = Q(hastags__contains=[delim])
-        elif 'a__' in iden:
-            delim = iden.replace('a__', '', 1)
-            d_type = 'atag'
-            query = Q(atags__contains=[delim])
-        elif 'ho__' in iden:
-            delim = iden.replace('ho__', '', 1)
-            d_type = 'hobby'
-            query = Q(hobby=delim)
-        posts = Post.objects.filter(query).order_by('score', '-created_at')
-        serialized_posts = [{"post_id": post.id, "hobby": post.hobby,
-                             "assets": post.assets, "editor": post.editor} for post in posts]
-        return Response({'title': delim, 'type': d_type, 'posts': serialized_posts}, status=status.HTTP_200_OK)
-
-
 class ThirdPartyProfileView(APIView):
     permission_classes = [AllowAny]
 
@@ -577,43 +370,6 @@ class ThirdPartyProfileView(APIView):
             serialized['posts'] = serialized_posts
             return Response(serialized, status=status.HTTP_200_OK)
         return Response({}, status=status.HTTP_404_NOT_FOUND)
-
-
-class FollowView(APIView):
-    authenticatio_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, requirement: str):
-        user, valid = identify_token(request)
-        if not valid:
-            return Response({}, status=status.HTTP_403_FORBIDDEN)
-        f_manage = managers.ManageFollows(user)
-        followers = []
-        following = []
-        if requirement == "followers":
-            followers = f_manage.fetch_followers()
-        elif requirement == "followings":
-            following = f_manage.fetch_followings()
-        return Response({"followings": following, "followers": followers}, status=status.HTTP_200_OK)
-
-
-class ThirdPersonFollowView(APIView):
-    authenticatio_classes = [TokenAuthentication]
-    permission_classes = [AllowAny]
-
-    def get(self, request, requirement: str):
-        users = Account.objects.filter(username=request.GET['username'])
-        if not users:
-            return Response({}, status=status.HTTP_403_FORBIDDEN)
-        user = users.first()
-        f_manage = managers.ManageFollows(user)
-        followers = []
-        following = []
-        if requirement == "followers":
-            followers = f_manage.fetch_followers()
-        elif requirement == "followings":
-            following = f_manage.fetch_followings()
-        return Response({"followings": following, "followers": followers}, status=status.HTTP_200_OK)
 
 
 class ProfileView(APIView):
