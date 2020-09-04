@@ -200,3 +200,50 @@ class RankBadge(models.Model):
     total = models.IntegerField(max_length=5)
     rank = models.IntegerField(max_length=5, default=0)
     score = models.DecimalField(max_digits=7, decimal_places=3, default=0.0)
+
+
+"""
+
+    LeaderBoard Competition, team and community models  
+
+"""
+
+class Team(models.Model):
+
+    created_at = models.DateTimeField(default=get_ist())
+    creator = models.ForeignKey(Account, on_delete=models.CASCADE, default='account_id')
+    head = models.ForeignKey(Account, on_delete=models.CASCADE, default='account_id')
+    moderator = ArrayField(models.ForeignKey(Account, on_delete=models.CASCADE, default=list))
+    tag = models.CharField(max_length=50, primary_key=True, default='tag')
+
+
+class Community(models.Model):
+
+    tag = models.CharField(max_length=50, default='tag', primary_key=True)
+    hobbies = ArrayField(models.ForeignKey(Hobby, on_delete=models.CASCADE, default=list))
+    places = ArrayField(models.ForeignKey(Places, on_delete=models.CASCADE, default=list))
+    creator = models.ForeignKey(Account, on_delete=models.CASCADE, default='account_id')
+    created_at = models.DateTimeField(default=get_ist())
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, default='')
+    description = models.TextField()
+    avatar = models.TextField()
+    banner = models.TextField()
+
+
+class Competition(models.Model):
+
+    com_id = models.CharField(max_length=50, default='comp_id', primary_key=True)
+    tag = models.CharField(max_length=20, default='', unique=True)
+    start_at = models.DateTimeField(default=get_ist())
+    end_at = models.DateTimeField(default=get_ist())
+    result_at = models.DateTimeField(default=get_ist)
+    community = models.ForeignKey(Community, on_delete=models.CASCADE, default='')
+    description = models.TextField()
+    avatar = models.TextField()
+    hobbies = ArrayField(models.ForeignKey(Hobby, on_delete=models.CASCADE, default=list))
+    places = ArrayField(models.ForeignKey(Places, on_delete=models.CASCADE, default=list))
+
+
+
+
+

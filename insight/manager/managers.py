@@ -1,6 +1,6 @@
 from insight.models import Account
 from django.db.models import Q
-from insight.serializers import FollowSerializer, FriendListSerializer
+from insight.association.serializer import FriendListSerializer, FollowSerializer
 
 class ManageFollows:
 
