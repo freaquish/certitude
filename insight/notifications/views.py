@@ -17,6 +17,7 @@ class UsersNotification(APIView):
 
     def get(self, request):
         user = request.user
-        notifications = Notification.objects.filter(Q(to=user) & Q(read=False))
+        notifications = Notification.objects.filter(Q(to=user) & Q(Q(
+            Q(type='REQU') & Q(used=False)) | Q(Q(type='ALERT') & Q(read=False))))
         serialized = NotificationSerializer(notifications).render()
         return Response({"notifications": serialized}, status=status.HTTP_200_OK)

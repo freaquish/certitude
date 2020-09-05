@@ -34,44 +34,53 @@ class MicroActions:
         else:
             self.user = None
         self.anonymous = anonymous
-    
+
     @shared_task
-    def score_post(post_id,user_id,weight=0.0):
+    def score_post(post_id, user_id, weight=0.0):
         user = Account.objects.get(pk=user_id)
         post = Post.objects.get(pk=post_id)
         if user.primary_hobby:
-            primary_hobby_weight: float = float(Hobby.objects.get(code_name=user.primary_hobby).weight)
+            primary_hobby_weight: float = float(
+                Hobby.objects.get(code_name=user.primary_hobby).weight)
         else:
             primary_hobby_weight = 0.0
         post_hobby_weight: float = float(post.hobby.weight)
         multiplier: float = float(
             user.hobby_map[post.hobby.code_name] if post.hobby.code_name in user.hobby_map else 1)
-        hobby_distance: float = 1 + abs(primary_hobby_weight - post_hobby_weight) / multiplier
+        hobby_distance: float = 1 + \
+            abs(primary_hobby_weight - post_hobby_weight) / multiplier
 
-        comment_score: float = 1.0 + float(WEIGHT_COMMENT * post.action_count['comment'])
-        love_score: float =  1.0 + float(WEIGHT_LOVE * post.action_count['love'])
-        share_score: float = 1.0 + float(WEIGHT_SHARE * post.action_count['share'])
-        save_score: float = 1.0 + float(WEIGHT_SAVE * post.action_count['save'])
-        view_score: float = 1.0 + float(WEIGHT_VIEW * post.action_count['view'])
-        score =  1 + (comment_score * love_score * share_score * save_score * view_score) / (
-               hobby_distance)
+        comment_score: float = 1.0 + \
+            float(WEIGHT_COMMENT * post.action_count['comment'])
+        love_score: float = 1.0 + \
+            float(WEIGHT_LOVE * post.action_count['love'])
+        share_score: float = 1.0 + \
+            float(WEIGHT_SHARE * post.action_count['share'])
+        save_score: float = 1.0 + \
+            float(WEIGHT_SAVE * post.action_count['save'])
+        view_score: float = 1.0 + \
+            float(WEIGHT_VIEW * post.action_count['view'])
+        score = 1 + (comment_score * love_score * share_score * save_score * view_score) / (
+            hobby_distance)
         post.score = score
         post.save()
 
     def commit_action(self, **action):
 
         if self.user:
-            action_store, created = ActionStore.objects.get_or_create(account_id=self.user.account_id, post_id=self.post.post_id)
+            action_store, created = ActionStore.objects.get_or_create(
+                account_id=self.user.account_id, post_id=self.post.post_id)
             # print(action_store)
             if 'viewed' in action and action_store.viewed:
                 return False
             else:
-                action_store.update(**action)       
+                action_store.update(**action)
         return True
 
     def commented(self, value):
         if self.user:
-            comment = PostComment.objects.get_or_created(post_id=self.post.post_id)[0]
+            comment = PostComment.objects.get_or_created(
+                post_id=self.post.post_id)[0]
             comment.comments.append({'username': self.user.username,
                                      'account_id': self.user.account_id,
                                      'name': self.user.first_name + " " + self.user.last_name,
@@ -95,13 +104,13 @@ class MicroActions:
 
     @staticmethod
     def follow_user(followed: Account, user: Account):
-        print(f"{followed.username},{user.username},'follow'")
+        # print(f"{followed.username},{user.username},'follow'")
         if not user.following:
             user.following = []
         if followed.account_id in user.following:
             return None
         user.following.append(followed.account_id)
-        user.following_count  = len(user.following)
+        user.following_count = len(user.following)
         if followed.follower_count:
             followed.follower_count += 1
         else:
@@ -109,7 +118,7 @@ class MicroActions:
         user.save()
         followed.save()
         return None
-        
+
     """
      Un-Follow User(followed,user)
      Steps:
@@ -121,7 +130,7 @@ class MicroActions:
 
     @staticmethod
     def un_follow_user(followed: Account, user: Account):
-        print(f"{followed.username},{user.username},'un_follow'")
+        # print(f"{followed.username},{user.username},'un_follow'")
         if not followed.account_id in user.following:
             return None
         user.following.remove(followed.account_id)
@@ -133,18 +142,16 @@ class MicroActions:
         user.save()
         followed.save()
         return None
-    
-    def increment(self,key, weight):
+
+    def increment(self, key, weight):
         self.post.action_count[key] += 1
         self.analyzer.analyze(self.post, weight)
-    
-    def decrement(self,key,weight):
+
+    def decrement(self, key, weight):
         if self.post.action_count[key] > 0:
             self.post.action_count[key] -= 1
         else:
             self.post.action_count[key] = 0
-
-
 
     def micro_actions(self, action, val=''):
         weight = 0.0
@@ -152,50 +159,51 @@ class MicroActions:
         if self.user.account_id == self.post.account.account_id and action == 'save':
             return None
         elif action == "love":
-            commited = self.commit_action(loved=True,loved_at=get_ist())
+            commited = self.commit_action(loved=True, loved_at=get_ist())
             weight = WEIGHT_LOVE
             if commited:
-                self.increment('love',weight)
+                self.increment('love', weight)
         elif action == "un_love":
             commited = self.commit_action(loved=False)
             weight = 0.0
             if commited:
-                self.decrement('love',0.0)
+                self.decrement('love', 0.0)
         elif action == "share":
             commited = self.commit_action(shared=True)
             weight = WEIGHT_SHARE
             if commited:
                 self.increment('share', weight)
         elif action == "view":
-            commited =self.commit_action(viewed=True,viewed_at=get_ist())
+            commited = self.commit_action(viewed=True, viewed_at=get_ist())
             weight = WEIGHT_VIEW
             if commited:
-                self.increment('view',weight)
+                self.increment('view', weight)
         elif action == "save":
             commited = self.commit_action(saved=True)
-           
+
             weight = WEIGHT_SAVE
             if commited:
                 self.user.saves.append(self.post.post_id)
-                self.increment('save',weight)
+                self.increment('save', weight)
 
         elif action == "un_save":
             commited = self.commit_action(saved=False)
             weight = 0.0
             if commited:
                 self.user.saves.remove(self.post.post_id)
-                self.increment('save',weight)
+                self.increment('save', weight)
         elif action == "comment":
             commited = self.commented(val)
             weight = WEIGHT_COMMENT
             if commited:
                 self.increment('comment', weight)
         self.post.save()
-        self.score_post.delay(self.post.post_id,self.user.account_id,weight=weight)
-        
+        self.score_post.delay(
+            self.post.post_id, self.user.account_id, weight=weight)
+
 
 # @shared_task
-def authenticated_mirco_actions(GET,token,req_type='GET'):
+def authenticated_mirco_actions(GET, token, req_type='GET'):
     if token:
         token = "".join(token.split('Token ')) if 'Token' in token else token
         tokens: QuerySet = Token.objects.filter(key=token)
@@ -211,13 +219,15 @@ def authenticated_mirco_actions(GET,token,req_type='GET'):
             data = GET
         # print(f"{account.account_id},{data['action']}")
         micro_action = MicroActions(data['pid'], account=account)
-        micro_action.micro_actions(data['action'], val=data['comment'] if data['action'] == "comment" else '')
+        micro_action.micro_actions(
+            data['action'], val=data['comment'] if data['action'] == "comment" else '')
         return None
     else:
         return None
 
+
 @shared_task
-def authenticated_association(token,fid, follow=True):
+def authenticated_association(token, fid, follow=True):
     tk = "".join(token.split('Token ')) if 'Token' in token else token
     tokens: QuerySet = Token.objects.filter(key=tk)
     if not tokens:
@@ -228,8 +238,9 @@ def authenticated_association(token,fid, follow=True):
     if not followes:
         return None
     if follow:
-        MicroActions.follow_user(followes.first(),user)
+        MicroActions.follow_user(followes.first(), user)
     return None
+
 
 @shared_task
 def general_micro_actions(get):

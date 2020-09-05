@@ -33,10 +33,10 @@ class FirendshipTest(APITestCase):
     def test_friendship_creation(self):
         self.init()
         user_friend_count, target_friend_count = self.user.friend_count, self.target.friend_count
-        print(self.user_token, user_friend_count, target_friend_count)
+        # print(self.user_token, user_friend_count, target_friend_count)
         response = self.client.get(
             f'/api/v1/association/friend/{self.target.account_id}')
-        print(response.data)
+        # print(response.data)
         self.assertEqual(response.status_code, 200)
 
         # Fetching notifications

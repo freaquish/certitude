@@ -18,7 +18,8 @@ class NotificationManager:
             body=f'{from_.first_name} {from_.last_name}',
             to=to,
             created_at=get_ist(),
-            read=False
+            read=False,
+            used=False
         )
         to.new_notification = True
         to.save()
@@ -32,7 +33,8 @@ class NotificationManager:
             body=body,
             created_at=get_ist(),
             to=to,
-            read=False
+            read=False,
+            used=True
         )
         to.new_notification = True
         to.save()

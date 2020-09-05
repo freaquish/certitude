@@ -162,6 +162,7 @@ class Notification(models.Model):
     to = models.ForeignKey(
         Account, on_delete=models.CASCADE, default='account_id')
     read = models.BooleanField(default=False)
+    used = models.BooleanField(default=False)
 
 
 class PostComment(models.Model):
@@ -198,6 +199,54 @@ class RankBadge(models.Model):
     hobby = models.ForeignKey(Hobby, on_delete=models.CASCADE, default='')
     account = models.ForeignKey(
         Account, on_delete=models.CASCADE, default='account_id')
-    total = models.IntegerField(max_length=5)
-    rank = models.IntegerField(max_length=5, default=0)
+    total = models.IntegerField(default=0)
+    rank = models.IntegerField(default=0)
     score = models.DecimalField(max_digits=7, decimal_places=3, default=0.0)
+
+
+"""
+
+    LeaderBoard Competition, team and community models  
+
+"""
+
+
+class Team(models.Model):
+    created_at = models.DateTimeField(default=get_ist())
+    creator = models.ForeignKey(
+        Account, on_delete=models.CASCADE, related_name='teamcreator')
+    head = models.ForeignKey(
+        Account, on_delete=models.CASCADE, related_name='head')
+    moderators = models.ManyToManyField(Account)
+    team_id = models.CharField(max_length=50, primary_key=True, default='tag')
+
+
+class Community(models.Model):
+
+    tag = models.CharField(max_length=50, default='', primary_key=True)
+    hobbies = models.ManyToManyField(Hobby)
+    places = models.ManyToManyField(Places)
+    creator = models.ForeignKey(
+        Account, on_delete=models.CASCADE, related_name='communitycreator')
+    created_at = models.DateTimeField(default=get_ist())
+    team = models.ForeignKey(
+        Team, on_delete=models.CASCADE, related_name='team')
+    description = models.TextField()
+    avatar = models.TextField()
+    banner = models.TextField()
+
+
+class Competition(models.Model):
+
+    com_id = models.CharField(
+        max_length=50, default='comp_id', primary_key=True)
+    tag = models.CharField(max_length=20, default='', unique=True)
+    start_at = models.DateTimeField(default=get_ist())
+    end_at = models.DateTimeField(default=get_ist())
+    result_at = models.DateTimeField(default=get_ist)
+    community = models.ForeignKey(
+        Community, on_delete=models.CASCADE, default='', related_name='community')
+    description = models.TextField()
+    avatar = models.TextField()
+    hobbies = models.ManyToManyField(Hobby)
+    places = models.ManyToManyField(Places)

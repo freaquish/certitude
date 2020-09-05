@@ -72,32 +72,20 @@ class FriendView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, requirement: str):
-        user, valid = identify_token(request)
-        if not valid:
-            return Response({}, status=status.HTTP_403_FORBIDDEN)
-        f_friends = ManageFriends(user)
-
-        if requirement == "friends":
-            friends = f_friends.fetch_friends()
-        return Response({"friends": friends}, status=status.HTTP_200_OK)
-
-
-class ThirdPersonFriendView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [AllowAny]
-
-    def get(self, request, requirement: str):
-        users = Account.objects.filter(username=request.GET['username'])
-        if not users:
-            return Response({}, status=status.HTTP_403_FORBIDDEN)
-        user = users.first()
-        f_friends = ManageFriends(user)
-
-        if requirement == "friends":
-            friends = f_friends.fetch_friends()
-        return Response({"friends": friends}, status=status.HTTP_200_OK)
-
+    def get(self,request,requirement):
+        user: Account = request.user
+        if requirement != 'self':
+            accounts: QuerySet = Account.objects.filter(username=requirement)
+            if not accounts:
+                return Response({},status=status.HTTP_404_NOT_FOUND)
+            account: Account = accounts.first()
+            if account != user:
+                manager = ManageFriends(account)
+                friends = manager.fetch_friends()
+                return Response({"friends":friends},status=status.HTTP_200_OK)
+        manager = ManageFriends(user)
+        friends = manager.fetch_friends()
+        return Response({"friends":friends},status=status.HTTP_200_OK)
 
 class FollowView(APIView):
     authenticatio_classes = [TokenAuthentication]

@@ -356,12 +356,24 @@ class ThirdPartyProfileView(APIView):
         accounts: QuerySet = Account.objects.filter(username=username)
         if accounts:
             account: Account = accounts.first()
+            if self.user == account:
+                return Response({"self": 1}, status=status.HTTP_200_OK)
             serialized = ProfileSerializer(account).data
             following = 0
             friends = 0
             if self.valid_user:
                 following = 1 if account.account_id in self.user.following else 0
                 friends = 1 if account.account_id in self.user.friend else 0
+                if friends == 0:
+                    notifications = Notification.objects.filter(Q(Q(Q(to=account) | Q(to=self.user)) & Q(Q(header=self.user.username) | Q(header=account.username))) & Q(type='REQU'))
+                    sent_notifications: QuerySet = notifications.filter(Q(to=account) & Q(header=self.user.username))
+                    received_notifications: QuerySet = notifications.filter(Q(to=self.user) & Q(header=account.username))
+                    if sent_notifications:
+                        serialized['isSentRequest'] = 1
+                    if received_notifications:
+                        serialized['isReceivedRequest'] = 1
+
+
             serialized['following'] = following
             serialized['friend'] = friends
             posts = Post.objects.filter(account__account_id=account.account_id)
@@ -417,8 +429,6 @@ class ProfileView(APIView):
             Places.objects.bulk_create(place_list)
             del data['places']
         try:
-            print(data)
-            # using stone way because object.update isn't working
             user.__dict__.update(**data)
             user.save()
         except Exception as e:

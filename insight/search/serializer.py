@@ -17,3 +17,9 @@ class SearchSerializer:
             "tag": tag.tag,
             "avatar": avatar
         }
+
+    def render_tag(self):
+        rendered = []
+        for tag in self.results:
+            rendered.append(self._serialize_tag(tag))
+        return rendered
