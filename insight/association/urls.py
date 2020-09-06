@@ -3,7 +3,7 @@ from .views import *
 
 urlpatterns = [
     path('friend/request/<str:target>', FriendshipManager.as_view()),
-    path('friend/accept/<str:noti>', AcceptFriendRequest.as_view()),
+    path('friend/accept/<str:username>', AcceptFriendRequest.as_view()),
     path('follow/<str:target>', FollowManager.as_view()),
     path('friends/<str:requirement>', FriendView.as_view()),
     path('profile/follows/<str:requirement>', FollowView.as_view()),

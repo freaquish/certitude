@@ -32,7 +32,10 @@ class FriendshipManager(APIView):
     def get(self, request, target: str):
         user, valid = identify_token(request)
         association_engine = AssociationEngine(user)
-        target_account: Account = Account.objects.get(account_id=target)
+        target_accounts: QuerySet = Account.objects.filter(username=target)
+        if not target_accounts:
+            return Response({}, status=status.HTTP_404_NOT_FOUND)
+        target_account: Account = target_accounts.first()
         association_engine.friend_association_manager(target_account)
         return Response({}, status=status.HTTP_200_OK)
 
@@ -41,17 +44,20 @@ class AcceptFriendRequest(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, noti):
-        target, valid = identify_token(request)
-        notifications = Notification.objects.filter(noti_id=noti)
-        if not notifications:
+    def get(self, request, username):
+        user: Account = request.user
+        accounts: QuerySet = Account.objects.filter(username=username)
+        if not accounts:
             return Response({}, status=status.HTTP_404_NOT_FOUND)
-        notification = notifications.first()
-        notification.read = True
-        notification.save()
-        user = Account.objects.get(pk=notification.meta['account_id'])
+        account: Account = accounts.first()
+        if 'noti' in request.GET:
+            notifications = Notification.objects.filter(noti_id=request.GET['noti'])
+            notification = notifications.first()
+            notification.read = True
+            notification.used = True 
+            notification.save()
         association_engine = AssociationEngine(user)
-        association_engine.accept_friend_request(target)
+        association_engine.accept_friend_request(account)
         return Response({}, status=status.HTTP_200_OK)
 
 
