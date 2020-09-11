@@ -7,6 +7,7 @@ from insight.models import *
 from rest_framework.authentication import TokenAuthentication
 from .search import SearchEngine
 from .serializer import SearchSerializer
+from urllib.parse import unquote
 
 
 class SearchView(APIView):
@@ -20,7 +21,7 @@ class SearchView(APIView):
     """
     def get(self, request):
         user: Account = request.user
-        query: str = request.GET['query']
+        query: str = unquote(request.GET['query'])
         search_engine: SearchEngine = SearchEngine(user, query)
         if '#' in query:
             tags: QuerySet = search_engine.search_tags()

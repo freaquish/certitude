@@ -50,8 +50,8 @@ class AcceptFriendRequest(APIView):
         if not accounts:
             return Response({}, status=status.HTTP_404_NOT_FOUND)
         account: Account = accounts.first()
-        if 'noti' in request.GET:
-            notifications = Notification.objects.filter(noti_id=request.GET['noti'])
+        notifications: QuerySet = Notification.objects.filter(Q(to=user) & Q(Q(header=account.username) & Q(type='REQU')))
+        if notifications:
             notification = notifications.first()
             notification.read = True
             notification.used = True 
@@ -60,17 +60,53 @@ class AcceptFriendRequest(APIView):
         association_engine.accept_friend_request(account)
         return Response({}, status=status.HTTP_200_OK)
 
+class ObjectFriendRequest(APIView):
+    authenticatio_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, action,username):
+        user: Account = request.user 
+        accounts: QuerySet = Account.objects.filter(username=username)
+        if not accounts:
+            return Response({}, status=status.HTTP_404_NOT_FOUND)
+        account: Account = accounts.first()
+        if action == 'cancel':
+            notifications: QuerySet = Notification.objects.filter(Q(to=account) & Q(Q(header=user.username) & Q(type='REQU')))
+        elif action == 'reject':
+            notifications: QuerySet = Notification.objects.filter(Q(to=user) & Q(Q(header=account.username) & Q(type='REQU')))
+        if notifications:
+            notification: Notification = notifications.first()
+            notification.read = True
+            notification.used = True
+            notification.save()
+        return Response({}, status=status.HTTP_200_OK)
+
+class UnfriendView(APIView):
+    authenticatio_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, target):
+        user: Account = request.user 
+        manager = AssociationEngine(user)
+        target_accounts: QuerySet = Account.objects.filter(username=target)
+        if not target_accounts:
+            return Response({}, status=status.HTTP_404_NOT_FOUND)
+        target_account: Account = target_accounts.first()
+        manager.remove_friend(target_account)
+        return Response({}, status=status.HTTP_200_OK)
+
 
 class FollowManager(APIView):
 
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
+    # This view single handedly operates follow/un_follow operation
     def get(self, request, target: str):
         user, valid = identify_token(request)
-        association_engine = AssociationEngine(user)
         target_account = Account.objects.get(account_id=target)
-        association_engine.follow_association_manager(target_account)
+        association_engine = AssociationEngine(target_account)
+        association_engine.follow_association_manager(user)
         return Response({}, status=status.HTTP_200_OK)
 
 

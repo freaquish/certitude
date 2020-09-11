@@ -58,6 +58,7 @@ class Account(AbstractBaseUser, PermissionsMixin):
     influencer = models.BooleanField(default=False)
     influencing_hobby = models.CharField(max_length=20, default='')
     hobby_map = JSONField(default=dict)  # {"code_name": E(action)}
+    hobby_score = JSONField(default=dict)  # {"code_name": Net_Score of hobby}
     primary_hobby = models.CharField(max_length=20, default='')
     primary_weight = models.DecimalField(
         max_digits=4, decimal_places=2, default=0.00)
