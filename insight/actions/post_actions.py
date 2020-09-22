@@ -1,9 +1,11 @@
 from celery import shared_task
 from insight.models import *
 import json
-from insight.utils import *
+from datetime import timedelta
 from django.db.models import Q, QuerySet
 from insight.manager.analyzer import Analyzer
+from insight.leaderboard.main import LeaderBoardEngine
+from insight.utils import get_ist
 
 """
  Micro Actions are set of actions included in the post, generally used for expression about the post by the viewer.
@@ -35,35 +37,45 @@ class MicroActions:
             self.user = None
         self.anonymous = anonymous
 
+    @staticmethod
     @shared_task
     def score_post(post_id, user_id, weight=0.0):
-        user = Account.objects.get(pk=user_id)
-        post = Post.objects.get(pk=post_id)
-        if user.primary_hobby:
-            primary_hobby_weight: float = float(
-                Hobby.objects.get(code_name=user.primary_hobby).weight)
-        else:
-            primary_hobby_weight = 0.0
-        post_hobby_weight: float = float(post.hobby.weight)
-        multiplier: float = float(
-            user.hobby_map[post.hobby.code_name] if post.hobby.code_name in user.hobby_map else 1)
-        hobby_distance: float = 1 + \
-            abs(primary_hobby_weight - post_hobby_weight) / multiplier
-
+        # user = Account.objects.get(pk=user_id)
+        posts = Post.objects.filter(post_id=post_id)
+        if not posts:
+            return None
+        post = posts.first()
         comment_score: float = 1.0 + \
-            float(WEIGHT_COMMENT * post.action_count['comment'])
+                               float(WEIGHT_COMMENT * post.action_count['comment'])
         love_score: float = 1.0 + \
-            float(WEIGHT_LOVE * post.action_count['love'])
+                            float(WEIGHT_LOVE * post.action_count['love'])
         share_score: float = 1.0 + \
-            float(WEIGHT_SHARE * post.action_count['share'])
+                             float(WEIGHT_SHARE * post.action_count['share'])
         save_score: float = 1.0 + \
-            float(WEIGHT_SAVE * post.action_count['save'])
+                            float(WEIGHT_SAVE * post.action_count['save'])
         view_score: float = 1.0 + \
-            float(WEIGHT_VIEW * post.action_count['view'])
-        score = 1 + (comment_score * love_score * share_score * save_score * view_score) / (
-            hobby_distance)
+                            float(WEIGHT_VIEW * post.action_count['view'])
+        score = 1 + (comment_score * love_score * share_score * save_score * view_score)
         post.score = score
+        if not weight == WEIGHT_VIEW:
+            post.last_activity_on = get_ist()
         post.save()
+        leaderboard = LeaderBoardEngine.post_rank(post.hobby)
+        scoreboards = Scoreboard.objects.filter(Q(account=post.account) & Q(expires_on__gte=get_ist()))
+        if not scoreboards:
+            scoreboard: Scoreboard = Scoreboard.objects.create(account=post.account, created_at=get_ist(),
+                                                               expires_on=get_ist() + timedelta(days=7))
+        else:
+            scoreboard: Scoreboard = scoreboards.first()
+        if post.hobby.code_name in scoreboard.hobby_scores:
+            scoreboard.hobby_scores[post.hobby.code_name] += weight
+        else:
+            scoreboard.hobby_scores[post.hobby.code_name] = weight
+        net_score: float = 0.0
+        for index, (hobby, score) in enumerate(scoreboard.hobby_scores.items()):
+            net_score += score
+        scoreboard.net_score = net_score
+        scoreboard.save()
 
     def commit_action(self, **action):
 
@@ -88,7 +100,7 @@ class MicroActions:
                                      'data': value
                                      })
             comment.save()
-            self.commit_action(commented=True)
+            return self.commit_action(commented=True)
 
     """
       Follow user function will receive two arguments
@@ -165,7 +177,7 @@ class MicroActions:
                 self.increment('love', weight)
         elif action == "un_love":
             commited = self.commit_action(loved=False)
-            weight = 0.0
+            weight = - WEIGHT_LOVE
             if commited:
                 self.decrement('love', 0.0)
         elif action == "share":
@@ -188,7 +200,7 @@ class MicroActions:
 
         elif action == "un_save":
             commited = self.commit_action(saved=False)
-            weight = 0.0
+            weight = - WEIGHT_SAVE
             if commited:
                 self.user.saves.remove(self.post.post_id)
                 self.increment('save', weight)

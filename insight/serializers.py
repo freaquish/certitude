@@ -61,7 +61,7 @@ class PostSerializer:
                     Q(account_id=self.account.account_id) & Q(post_id=self.post.post_id))
                 if post_actions:
                     post_action = post_actions.first()
-                    print(post_actions, post_action.loved)
+                    #print(post_actions, post_action.loved)
                     # print(serialized['footer']['action_map']['view'] > 0 and post_action.viewed)
                     if post_action.loved and serialized['footer']['action_map']['love'] > 0:
                         serialized['meta']['actions']['loved'] = 1
@@ -144,3 +144,26 @@ class ActionStoreSerializer:
         for action in self.actions:
             json[action.post_id] = self._render(action)
         return json
+
+class ShallowPostSerializer:
+    def __init__(self, posts):
+        self.posts = posts
+    
+    @staticmethod 
+    def _serialise(post:Post):
+        return {
+            "assets": post.assets,
+            "post_id":post.post_id,
+            "meta":{
+                "account_id":post.account.account_id,
+                "username": post.account.username,
+                "avatar": post.account.avatar
+            }
+        }
+
+    def data(self):
+        renderd = []
+        for post in self.posts:
+            renderd.append(self._serialise(post))
+        return renderd
+

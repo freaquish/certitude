@@ -19,4 +19,6 @@ urlpatterns = [
     path('test/feed', PaginatedFeedView.as_view()),
     path('association/', include('insight.association.urls')),
     path('notification/', include('insight.notifications.urls')),
+    path('search/', include('insight.search.urls')),
+    path('leaderboard/', include('insight.leaderboard.urls'))
 ]

@@ -356,6 +356,7 @@ class ThirdPartyProfileView(APIView):
         accounts: QuerySet = Account.objects.filter(username=username)
         if accounts:
             account: Account = accounts.first()
+            print(request.user.username)
             if self.user == account:
                 return Response({"self": 1}, status=status.HTTP_200_OK)
             serialized = ProfileSerializer(account).data

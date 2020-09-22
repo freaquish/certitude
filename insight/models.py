@@ -28,9 +28,9 @@ class AccountManager(BaseUserManager):
         extra_fields.setdefault('is_active', True)
 
         if extra_fields.get('is_staff') is not True:
-            raise ValueError(_('Superuser must have is_staff=True.'))
+            raise ValueError('Superuser must have is_staff=True.')
         if extra_fields.get('is_superuser') is not True:
-            raise ValueError(_('Superuser must have is_superuser=True.'))
+            raise ValueError('Superuser must have is_superuser=True.')
         return self.create_user(account_id, password, **extra_fields)
 
 
@@ -58,7 +58,6 @@ class Account(AbstractBaseUser, PermissionsMixin):
     influencer = models.BooleanField(default=False)
     influencing_hobby = models.CharField(max_length=20, default='')
     hobby_map = JSONField(default=dict)  # {"code_name": E(action)}
-    hobby_score = JSONField(default=dict)  # {"code_name": Net_Score of hobby}
     primary_hobby = models.CharField(max_length=20, default='')
     primary_weight = models.DecimalField(
         max_digits=4, decimal_places=2, default=0.00)
@@ -115,6 +114,7 @@ class Post(models.Model):
     assets = JSONField(default=dict)
     caption = models.TextField()
     hastags = ArrayField(models.CharField(max_length=20), default=list)
+    last_activity_on = models.DateField(default=get_ist())
     atags = ArrayField(models.CharField(max_length=20), default=list)
     coords = gis_models.PointField(
         Point(0, 0, srid=4326), srid=4326, blank=True, null=True)
@@ -184,7 +184,7 @@ class Leaderboard(models.Model):
 class Tags(models.Model):
     tag = models.TextField(primary_key=True)
     created_at = models.DateTimeField(default=get_ist())
-    first_used = models.CharField(max_length=15, default='')
+    first_used = models.CharField(max_length=50, default='')
 
 
 class Places(models.Model):
@@ -212,42 +212,11 @@ class RankBadge(models.Model):
 """
 
 
-class Team(models.Model):
-    created_at = models.DateTimeField(default=get_ist())
-    creator = models.ForeignKey(
-        Account, on_delete=models.CASCADE, related_name='teamcreator')
-    head = models.ForeignKey(
-        Account, on_delete=models.CASCADE, related_name='head')
-    moderators = models.ManyToManyField(Account)
-    team_id = models.CharField(max_length=50, primary_key=True, default='tag')
+class Scoreboard(models.Model):
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    created_at = models.DateField(default=get_ist_date())
+    expires_on = models.DateField(default=get_ist_date())
+    hobby_scores = JSONField(default=dict)
+    net_score = models.DecimalField(default=0.0, max_digits=8, decimal_places=4)
+    rank = models.IntegerField(default=0)
 
-
-class Community(models.Model):
-
-    tag = models.CharField(max_length=50, default='', primary_key=True)
-    hobbies = models.ManyToManyField(Hobby)
-    places = models.ManyToManyField(Places)
-    creator = models.ForeignKey(
-        Account, on_delete=models.CASCADE, related_name='communitycreator')
-    created_at = models.DateTimeField(default=get_ist())
-    team = models.ForeignKey(
-        Team, on_delete=models.CASCADE, related_name='team')
-    description = models.TextField()
-    avatar = models.TextField()
-    banner = models.TextField()
-
-
-class Competition(models.Model):
-
-    com_id = models.CharField(
-        max_length=50, default='comp_id', primary_key=True)
-    tag = models.CharField(max_length=20, default='', unique=True)
-    start_at = models.DateTimeField(default=get_ist())
-    end_at = models.DateTimeField(default=get_ist())
-    result_at = models.DateTimeField(default=get_ist)
-    community = models.ForeignKey(
-        Community, on_delete=models.CASCADE, default='', related_name='community')
-    description = models.TextField()
-    avatar = models.TextField()
-    hobbies = models.ManyToManyField(Hobby)
-    places = models.ManyToManyField(Places)
