@@ -42,7 +42,7 @@ class LeaderBoardEngine:
         scoreboards = Scoreboard.objects.filter(Q(hobby_scores__has_key=self.hobby) & Q(
             Q(created_at__lte=get_ist_date()) & Q(expires_on__gte=get_ist_date())))
         if scoreboards:
-            scoreboards = sorted(scoreboards, key=lambda scoreboard: scoreboard.hobby_scores[self.hobby])
+            scoreboards = sorted(scoreboards, key=lambda scoreboard: scoreboard.hobby_scores[self.hobby], reverse=True)
             return [self.serialize_hobby_rank(scoreboard, self.hobby, index + 1) for index, scoreboard in
                     enumerate(scoreboards)]
         else:
