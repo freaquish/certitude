@@ -28,12 +28,12 @@ class Analyzer:
       update primary_hobby and primary_hobby_weight
     """    
 
-    @staticmethod
-    def max_in_map(map, default,value):
-        maximum = [default,value]
-        for key in map.keys():
-            if map[key] > maximum[1]:
-                maximum = [key,map[key]]
+    def max_in_map(self):
+        maximum_hobby=''
+        maximum_weight = 0.0
+        for key in self.user.hobby_map.keys():
+            if self.user.hobby_map[key] > maximum_weight:
+                maximum = key 
         return maximum
     
     def analyze(self, post:Post, weight: float):
@@ -48,7 +48,7 @@ class Analyzer:
         if not self.user.primary_hobby:
             self.user.primary_hobby = post_hobby_code_name
             self.user.primary_weight = post_hobby_weight
-        self.user.primary_hobby, self.user.primary_weight = self.max_in_map(self.user.hobby_map, self.user.primary_hobby, self.user.primary_weight)
+        self.user.primary_hobby= self.max_in_map()
         self.user.save()
         
     def analyze_create_post(self, post: Post):
