@@ -105,8 +105,8 @@ class FollowManager(APIView):
     def get(self, request, target: str):
         user, valid = identify_token(request)
         target_account = Account.objects.get(account_id=target)
-        association_engine = AssociationEngine(target_account)
-        association_engine.follow_association_manager(user)
+        association_engine = AssociationEngine(user)
+        association_engine.follow_association_manager(target_account)
         return Response({}, status=status.HTTP_200_OK)
 
 

@@ -1,7 +1,11 @@
 
 # POSTGRES DB
 DATABASE_POSTGRES_ENGINE: str = 'django.contrib.gis.db.backends.postgis'
+DATABASE_MONGO_ENGINE: str = 'djongo'
+
 DATABASE_POSTGRES_NAME: str = 'insightdb'
+DATABASE_MONGO_NAME: str = 'insightdb'
+
 DATABASE_POSTGRES_HOST: str = 'localhost'
 DATABASE_POSTGRES_USER: str = 'postgres'
 DATABASE_POSTGRES_PASSWORD: str = 'piyush@103'

@@ -13,7 +13,7 @@ from django.db.models import QuerySet
 from django.db.models import Q
 
 
-from insight.actions.post_actions import authenticated_mirco_actions, general_micro_actions, authenticated_association
+from insight.actions.post_actions import authenticated_mirco_actions, general_micro_actions, authenticated_association, MicroActions
 from insight.paginator import FeedPaginator
 from insight.models import *
 from insight.actions.feed import Feed
@@ -264,7 +264,9 @@ class GeneralMicroActionView(APIView):
 
 class ManageAssociation(APIView):
     permission_classes = [AllowAny]
-
+    """
+    Must not deprecate, currently used in PostBox
+    """
     def get(self, request):
         if 'HTTP_AUTHORIZATION' in request.META:
             token = request.META.get('HTTP_AUTHORIZATION')
@@ -283,57 +285,18 @@ class OnePostView(APIView):
        mapped to url /post/<pk:post>
        will find the post and comment data and sent to user
     """
-
-    def get_user_action(self, request, pid):
-        if 'HTTP_AUTHORIZATION' in request.META:
-            tokens = Token.objects.filter(
-                key=request.META.get('HTTP_AUTHORIZATION'))
-            if not tokens:
-                return {'loved': 0, 'viewed': 0, 'shared': 0, 'saved': 0}
-            token = tokens.first()
-            user = token.user
-            action_store = ActionStore.objects.filter(
-                Q(post_id=pid) & Q(account_id=user.account_id))
-            if action_store:
-                actions = action_store.first()
-                return {'loved': actions.loved, 'viewed': actions.viewed, 'shared': actions.shared, 'saved': actions.saved}
-        else:
-            return {'loved': 0, 'viewed': 0, 'shared': 0, 'saved': 0}
-
     def get(self, request, pk):
-        post = Post.objects.filter(post_id=pk)
-        if post:
-            post = post.first()
-            comments = PostComment.objects.filter(post_id=pk)
-            comment = []
-            if comments:
-                comment = (comments.first()).comments
-            serialized_post = {
-                "post_id": post.post_id,
-                "header": {
-                    "username": post.account.username,
-                    "avatar": post.account.avatar,
-                    "account_id": post.account.account_id,
-                    "hobby": post.hobby.code_name,
-                    "hobby_name": post.hobby.name,
-                    "rank": post.rank
-                },
-                "body": post.assets,
-                "caption": post.caption,
-                "footer": {
-                    "action_map": post.action_count,
-                    "comments": comment
-                },
-                "meta": {
-                    "created": f'{((get_ist() - post.created_at).seconds / 3600)}h',
-                    "score": post.score,
-                    "editor": post.editor,
-                    "actions": self.get_user_action(request, pk)
-                }
-            }
-            return Response(serialized_post, status=status.HTTP_200_OK)
-        else:
-            return Response({}, status=status.HTTP_404_NOT_FOUND)
+      user = request.user
+      posts = Post.objects.filter(post_id=pk)
+      if not posts:
+        return Response({}, status=status.HTTP_404_NOT_FOUND)
+      post = posts.first()
+      actions = ActionStore.objects.filter(post_id=post.post_id)
+      serialized = PostSerializer([post],user).render_with_action(actions)
+      comments = UserPostComment.objects.filter(post_id=post.post_id).order_by('created_at')
+      serialized_comments = CommentSerializer(comments, many=True)
+      serialized['footer']['comments'] = serialized_comments.data 
+      return Response({'post': serialized}, status=status.HTTP_200_OK)
 
 
 class ThirdPartyProfileView(APIView):
@@ -482,5 +445,14 @@ class PaginatedFeedView(GenericAPIView):
         data.update({"len": length_queryset})
         return Response(data, status=status.HTTP_200_OK)
 
+class CreateCommentView(APIView):
+  authentication_classes = [TokenAuthentication]
+  permission_classes = [IsAuthenticated]
 
-# class RankBageView(APIView):
+  def post(self, request):
+    user = request.user
+    data = json.loads(request.body)
+    micro_actions = MicroActions(data['post_id'], user)
+    micro_actions.micro_actions('comment',data['comment'])
+    return Response({}, status=status.HTTP_200_OK)
+    

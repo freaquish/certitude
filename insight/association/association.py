@@ -27,18 +27,18 @@ class AssociationEngine:
         self.user.save()
 
     def follow_target(self, target: Account):
-        if self.user.account_id in target.following:
-            return None
-        target.following.append(self.user.account_id)
-        target.following_count += 1
-        self.user.follower_count += 1
+        if target.account_id in self.user.following:
+            return None 
+        self.user.following.append(target.account_id)
+        self.user.following_count += 1
+        target.follower_count += 1
         target.save()
         self.user.save()
 
     def unfollow_target(self, target: Account):
-        target.following.remove(self.user.account_id)
-        target.following_count -= 1
-        self.user.follower_count -= 1
+        self.user.following.remove(target.account_id)
+        self.user.following_count -= 1
+        target.follower_count -= 1
         target.save()
         self.user.save()
 
@@ -57,6 +57,8 @@ class AssociationEngine:
         self.make_friend(target)
 
     def follow_association_manager(self, target: Account):
+        if target.account_id == self.user.account_id:
+            return None
         if target.account_id in self.user.following:
             self.unfollow_target(target)
         else:

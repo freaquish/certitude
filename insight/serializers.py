@@ -167,3 +167,8 @@ class ShallowPostSerializer:
             renderd.append(self._serialise(post))
         return renderd
 
+class CommentSerializer(ModelSerializer):
+
+    class Meta:
+        model = UserPostComment 
+        fields = '__all__'

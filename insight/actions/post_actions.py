@@ -91,15 +91,7 @@ class MicroActions:
 
     def commented(self, value):
         if self.user:
-            comment = PostComment.objects.get_or_created(
-                post_id=self.post.post_id)[0]
-            comment.comments.append({'username': self.user.username,
-                                     'account_id': self.user.account_id,
-                                     'name': self.user.first_name + " " + self.user.last_name,
-                                     'image': self.user.avatar,
-                                     'data': value
-                                     })
-            comment.save()
+            comment = UserPostComment.objects.create(post_id=self.post.post_id, account=self.user, created_at=get_ist(), comment=value)
             return self.commit_action(commented=True)
 
     """

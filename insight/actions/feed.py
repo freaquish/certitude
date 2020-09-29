@@ -2,7 +2,7 @@ from django.db.models.fields import DecimalField
 from insight.utils import get_ist_date
 from django.db.models import F, Q
 import datetime
-from insight.models import Account, Post, UserActionRef, Hobby, ActionStore
+from insight.models import Account, Post,  Hobby, ActionStore
 
 
 class Feed:

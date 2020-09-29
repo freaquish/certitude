@@ -7,6 +7,7 @@ from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
 from rest_framework.authtoken.models import Token
+from djongo import models as mongo_models 
 from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
 
 
@@ -105,11 +106,9 @@ class Hobby(models.Model):
 class Post(models.Model):
     post_id = models.CharField(max_length=22, primary_key=True, default='')
     username = models.CharField(max_length=30, default='')
-    # account_id = models.CharField(max_length=50, default='')
     account = models.ForeignKey(
         Account, on_delete=models.CASCADE, default='account_id')
     editor = models.CharField(max_length=14)
-    # hobby = models.CharField(max_length=30, default='')
     hobby = models.ForeignKey(Hobby, on_delete=models.CASCADE, default='')
     assets = JSONField(default=dict)
     caption = models.TextField()
@@ -122,18 +121,6 @@ class Post(models.Model):
     created_at = models.DateTimeField(default=get_ist())
     rank = models.IntegerField(default=0)
     score = models.DecimalField(max_digits=7, decimal_places=3, default=0.0)
-
-
-class UserActionRef(models.Model):
-    account_id = models.CharField(max_length=50, default='')
-    date_created = models.DateField(default=get_ist_date())
-    time_created = models.TimeField(default=get_ist_time())
-    hobby = models.CharField(max_length=20, default='')
-    loves = ArrayField(models.CharField(max_length=30), default=list)
-    shares = ArrayField(models.CharField(max_length=30), default=list)
-    saves = ArrayField(models.CharField(max_length=30), default=list)
-    comments = ArrayField(models.CharField(max_length=30), default=list)
-    views = ArrayField(models.CharField(max_length=30), default=list)
 
 
 class ActionStore(models.Model):
@@ -164,11 +151,6 @@ class Notification(models.Model):
         Account, on_delete=models.CASCADE, default='account_id')
     read = models.BooleanField(default=False)
     used = models.BooleanField(default=False)
-
-
-class PostComment(models.Model):
-    post_id = models.CharField(max_length=15)
-    comments = ArrayField(JSONField(), default=list)
 
 
 class Leaderboard(models.Model):
@@ -204,6 +186,12 @@ class RankBadge(models.Model):
     rank = models.IntegerField(default=0)
     score = models.DecimalField(max_digits=7, decimal_places=3, default=0.0)
 
+class UserPostComment(models.Model):
+    post_id = models.CharField(max_length=22, default='')
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, default='account_id')
+    comment = models.TextField()
+    created_at = models.DateTimeField(default=get_ist())
+    count = models.IntegerField(default=0)
 
 """
 
@@ -219,4 +207,5 @@ class Scoreboard(models.Model):
     hobby_scores = JSONField(default=dict)
     net_score = models.DecimalField(default=0.0, max_digits=8, decimal_places=4)
     rank = models.IntegerField(default=0)
+
 
