@@ -167,8 +167,22 @@ class ShallowPostSerializer:
             renderd.append(self._serialise(post))
         return renderd
 
-class CommentSerializer(ModelSerializer):
+class CommentSerializer:
+    def __init__(self, comments):
+        self.comments = comments
 
-    class Meta:
-        model = UserPostComment 
-        fields = '__all__'
+    def _serialise(self,comment: UserPostComment):
+        time_left = get_ist() - comment.created_at
+        return {
+            "account":{
+                "account_id": comment.account.account_id,
+                "username": comment.account.username,
+                "name": comment.account.first_name + ' '+ comment.account.last_name,
+                "avatar": comment.account.avatar 
+            },
+            "comment": comment.comment,
+            "created": f'{time_left}d' if time_left.days > 0 else '{0:.2f}h'.format(time_left.seconds / 3600)
+        }
+    def render(self):
+        renderd = [self._serialise(comment) for comment in self.comments]
+        return renderd 

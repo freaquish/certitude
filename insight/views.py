@@ -253,11 +253,12 @@ class GeneralMicroActionView(APIView):
         return Response({}, status=status.HTTP_200_OK)
 
     def post(self, request):
+        print(request.body)
         data = json.loads(request.body)
         token = None
         if 'HTTP_AUTHORIZATION' in request.META:
             token = request.META.get('HTTP_AUTHORIZATION')
-            authenticated_mirco_actions.delay(
+            authenticated_mirco_actions(
                 {"action": data['action'], "pid": data['pid'], 'comment': data['comment']}, token, req_type='POST')
         return Response({}, status=status.HTTP_200_OK)
 
@@ -287,15 +288,16 @@ class OnePostView(APIView):
     """
     def get(self, request, pk):
       user = request.user
+      print(user)
       posts = Post.objects.filter(post_id=pk)
       if not posts:
         return Response({}, status=status.HTTP_404_NOT_FOUND)
       post = posts.first()
       actions = ActionStore.objects.filter(post_id=post.post_id)
-      serialized = PostSerializer([post],user).render_with_action(actions)
+      serialized = PostSerializer([post],user).render_with_action(actions)[0]
       comments = UserPostComment.objects.filter(post_id=post.post_id).order_by('created_at')
-      serialized_comments = CommentSerializer(comments, many=True)
-      serialized['footer']['comments'] = serialized_comments.data 
+      serialized_comments = CommentSerializer(comments) 
+      serialized['footer']['comments'] = serialized_comments.render() 
       return Response({'post': serialized}, status=status.HTTP_200_OK)
 
 
