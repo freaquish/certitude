@@ -4,13 +4,14 @@
  API will receive signals from actions such as create , view, love, share, comment or follow
  API can manage hobby_map and primary hobby of user for personalized experience
 """
+from datetime import timedelta
+from insight.models import Hobby, Post, Account, get_ist
 
-from insight.models import Hobby, Post, Account
 
 
-WEIGHT_VIEW: float = 0.25
+WEIGHT_VIEW: float = 0.20
 WEIGHT_LOVE: float = 0.50
-WEIGHT_COMMENT: float = 0.65
+WEIGHT_COMMENT: float = 0.20
 WEIGHT_SAVE: float = 0.80
 WEIGHT_SHARE: float = 0.85
 WEIGHT_CREATE: float = 0.90
@@ -52,5 +53,21 @@ class Analyzer:
         self.user.save()
         
     def analyze_create_post(self, post: Post):
-       self.analyze(post,WEIGHT_CREATE)
+        self.analyze(post,WEIGHT_CREATE)
+        weight = WEIGHT_CREATE
+        scoreboards = Scoreboard.objects.filter(Q(account=post.account) & Q(expires_on__gte=get_ist()))
+        if not scoreboards:
+            scoreboard: Scoreboard = Scoreboard.objects.create(account=post.account, created_at=get_ist(),
+                                                               expires_on=get_ist() + timedelta(days=7))
+        else:
+            scoreboard: Scoreboard = scoreboards.first()
+        if post.hobby.code_name in scoreboard.hobby_scores:
+            scoreboard.hobby_scores[post.hobby.code_name] += weight
+        else:
+            scoreboard.hobby_scores[post.hobby.code_name] = weight
+        net_score: float = 0.0
+        for index, (hobby, score) in enumerate(scoreboard.hobby_scores.items()):
+            net_score += score
+        scoreboard.net_score = net_score
+        scoreboard.save()
     

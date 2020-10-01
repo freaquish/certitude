@@ -184,7 +184,8 @@ class CreatePost(APIView):
     def post(self, request):
         data: dict = json.loads(request.body)
         if True:
-            self.verify_token()
+            self.user: Account = request.user 
+            self.valid_user = True if self.user else False
             if not self.valid_user:
                 return Response({}, status=status.HTTP_403_FORBIDDEN)
             if len(data['assets']) == 0:

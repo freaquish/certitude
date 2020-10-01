@@ -77,7 +77,8 @@ class PostSerializer:
         data = {'created_at': self.post.created_at, 'header': {}, 'body': {
         }, 'caption': {}, 'footer': {}, 'meta': {}, 'post_id': self.post.post_id}
         data['meta']['score'] = self.post.score
-        data['meta']['created'] = f'{((get_ist() - self.post.created_at).seconds / 3600)}h'
+        time_left = get_ist() - self.post.created_at
+        data['meta']['created'] =  '{0:.2f}d'.format(time_left.days) if time_left.days >= 1   else  '{0:.2f}h'.format(time_left.seconds / 3600) 
         data['meta']['editor'] = self.post.editor
         data['meta']['account_id'] = user.account_id
         data['header']['avatar'] = user.avatar

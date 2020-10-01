@@ -18,7 +18,7 @@ from insight.utils import get_ist
 
 WEIGHT_VIEW: float = 0.20
 WEIGHT_LOVE: float = 0.50
-WEIGHT_COMMENT: float = 0.65
+WEIGHT_COMMENT: float = 0.20
 WEIGHT_SAVE: float = 0.80
 WEIGHT_SHARE: float = 0.95
 WEIGHT_FOLLOWER: float = 0.30
@@ -61,6 +61,7 @@ class MicroActions:
             post.last_activity_on = get_ist()
         post.save()
         leaderboard = LeaderBoardEngine.post_rank(post.hobby)
+        """
         scoreboards = Scoreboard.objects.filter(Q(account=post.account) & Q(expires_on__gte=get_ist()))
         if not scoreboards:
             scoreboard: Scoreboard = Scoreboard.objects.create(account=post.account, created_at=get_ist(),
@@ -76,6 +77,8 @@ class MicroActions:
             net_score += score
         scoreboard.net_score = net_score
         scoreboard.save()
+        """
+
 
     def commit_action(self, **action):
 
