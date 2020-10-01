@@ -260,6 +260,10 @@ class GeneralMicroActionView(APIView):
             token = request.META.get('HTTP_AUTHORIZATION')
             authenticated_mirco_actions(
                 {"action": data['action'], "pid": data['pid'], 'comment': data['comment']}, token, req_type='POST')
+            if data['action'] == 'comment':
+              comments = UserPostComment.objects.filter(post_id=data['pid'])
+              serialized = CommentSerializer(comments).render()
+              return Response({'comments': serialized}, status=status.HTTP_200_OK)
         return Response({}, status=status.HTTP_200_OK)
 
 
@@ -288,7 +292,6 @@ class OnePostView(APIView):
     """
     def get(self, request, pk):
       user = request.user
-      print(user)
       posts = Post.objects.filter(post_id=pk)
       if not posts:
         return Response({}, status=status.HTTP_404_NOT_FOUND)
@@ -300,6 +303,16 @@ class OnePostView(APIView):
       serialized['footer']['comments'] = serialized_comments.render() 
       return Response({'post': serialized}, status=status.HTTP_200_OK)
 
+
+class FetchComment(APIView):
+  authentication_classes = [TokenAuthentication]
+  permission_classes = [IsAuthenticated]
+
+  def get(self, request, pid: str):
+    user = request.user 
+    comments = UserPostComment.objects.filter(post_id=pid).order_by('created_at')
+    serialized = CommentSerializer(comments)
+    return Response({"comments":serialized.render()}, status=status.HTTP_200_OK)
 
 class ThirdPartyProfileView(APIView):
     permission_classes = [AllowAny]
@@ -446,15 +459,3 @@ class PaginatedFeedView(GenericAPIView):
             return Response(response)
         data.update({"len": length_queryset})
         return Response(data, status=status.HTTP_200_OK)
-
-class CreateCommentView(APIView):
-  authentication_classes = [TokenAuthentication]
-  permission_classes = [IsAuthenticated]
-
-  def post(self, request):
-    user = request.user
-    data = json.loads(request.body)
-    micro_actions = MicroActions(data['post_id'], user)
-    micro_actions.micro_actions('comment',data['comment'])
-    return Response({}, status=status.HTTP_200_OK)
-    

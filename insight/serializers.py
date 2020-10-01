@@ -61,18 +61,14 @@ class PostSerializer:
                     Q(account_id=self.account.account_id) & Q(post_id=self.post.post_id))
                 if post_actions:
                     post_action = post_actions.first()
-                    #print(post_actions, post_action.loved)
-                    # print(serialized['footer']['action_map']['view'] > 0 and post_action.viewed)
                     if post_action.loved and serialized['footer']['action_map']['love'] > 0:
                         serialized['meta']['actions']['loved'] = 1
                     if serialized['footer']['action_map']['view'] > 0 and post_action.viewed:
-                        # print('Im happening')
                         serialized['meta']['actions']['viewed'] = 1
                     if serialized['footer']['action_map']['share'] > 0 and post_action.shared:
                         serialized['meta']['actions']['shared'] = 1
                     if serialized['footer']['action_map']['save'] > 0 and post_action.saved:
                         serialized['meta']['actions']['saved'] = 1
-                # print(serialized['meta']['actions'])
                 renderd.append(serialized)
         return renderd
 
@@ -86,6 +82,7 @@ class PostSerializer:
         data['meta']['account_id'] = user.account_id
         data['header']['avatar'] = user.avatar
         data['header']['username'] = user.username
+        data['header']['name'] = f'{user.first_name} {user.last_name}'
         data['header']['hobby_name'] = self.post.hobby.name
         data['header']['hobby'] = self.post.hobby.code_name
         data['header']['following'] = 0

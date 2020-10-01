@@ -12,7 +12,7 @@ urlpatterns = [
     path('post/create', CreatePost.as_view()),
     path('post/micro_action', GeneralMicroActionView.as_view()),
     path('post/<str:pk>', OnePostView.as_view()),
-    path('post/comment', CreateCommentView.as_view()),
+    path('post/comments/<str:pid>', FetchComment.as_view()),
     path('feed', PaginatedFeedView.as_view()),
     path('profile/third/<str:username>', ThirdPartyProfileView.as_view()),
     path('profile', ProfileView.as_view()),
