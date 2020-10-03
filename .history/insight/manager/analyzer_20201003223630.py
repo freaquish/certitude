@@ -55,12 +55,8 @@ class Analyzer:
     def analyze_create_post(self, post: Post):
         self.analyze(post, WEIGHT_CREATE)
         weight = WEIGHT_CREATE
-        self.analyze_scoreboard(post, weight)
-
-    def analyze_scoreboard(self, post: Post, weight):
         scoreboards = Scoreboard.objects.filter(
-            Q(account=post.account) & Q(expires_on__gte=get_ist())
-        )
+            Q(account=post.account) & Q(expires_on__gte=get_ist()))
         if not scoreboards:
             scoreboard: Scoreboard = Scoreboard.objects.create(account=post.account, created_at=get_ist(),
                                                                expires_on=get_ist() + timedelta(days=7))
@@ -75,3 +71,6 @@ class Analyzer:
             net_score += score
         scoreboard.net_score = net_score
         scoreboard.save()
+
+    def analyze_post_after_scoring(self, post: Post):
+        scoreboard = Scoreboard.objects.filter()

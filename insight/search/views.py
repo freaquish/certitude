@@ -18,7 +18,6 @@ class SearchView(APIView):
         user: Account = request.user
         query = request.GET['q']
         query = (query.replace('h__', '#')).replace('a__', '@')
-        print(user.username,'request')
         engine: SearchEngine = SearchEngine(user=user, query=query)
         results = engine.search()
         return Response(results, status=status.HTTP_200_OK)
@@ -33,7 +32,6 @@ class SearchFollowUp(APIView):
         name = ''
         posts = []
         if 'hastag' in data:
-            print(data['hastag'])
             name = f'#{data["hastag"]}'
             posts = Post.objects.filter(hastags__contains=[name])
         elif 'hobby' in data:

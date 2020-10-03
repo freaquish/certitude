@@ -22,12 +22,10 @@ EXCLUSION = {
 
 class SearchEngine:
     def __init__(self, **kwargs):
-        print('user' in kwargs)
         if 'query' in kwargs:
             self.query = kwargs['query']
         if 'user' in kwargs:
             self.user: Account = kwargs['user']
-            print(self.user,'doing')
         else:
             self.user = None
         if 'f_data' in kwargs:
@@ -105,7 +103,6 @@ class SearchEngine:
             last_name__icontains=self.query.replace('@', '')))
 
     def exclusion_user_query(self):
-        print(self)
         exclusion_query = Q(username=self.user.username) if self.user else None
         for exclusive in EXCLUSION['users']:
             if not exclusion_query:
@@ -146,7 +143,6 @@ class SearchEngine:
         self.hobby = Hobby.objects.all()
         vector = SearchVector('username') + SearchVector('first_name') + SearchVector('last_name')
         query = SearchQuery(self.query.replace('+', ' '))
-        print(self.user, 'query')
         accounts = Account.objects.filter(self.search_account_query()).exclude(self.exclusion_user_query()).annotate(
             vector=vector,
             rank=SearchRank(vector, query)).order_by('-rank')

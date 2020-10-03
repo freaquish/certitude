@@ -46,24 +46,39 @@ class MicroActions:
             return None
         post = posts.first()
         comment_score: float = 1.0 + \
-            float(WEIGHT_COMMENT * post.action_count['comment'])
+                               float(WEIGHT_COMMENT * post.action_count['comment'])
         love_score: float = 1.0 + \
-            float(WEIGHT_LOVE * post.action_count['love'])
+                            float(WEIGHT_LOVE * post.action_count['love'])
         share_score: float = 1.0 + \
-            float(WEIGHT_SHARE * post.action_count['share'])
+                             float(WEIGHT_SHARE * post.action_count['share'])
         save_score: float = 1.0 + \
-            float(WEIGHT_SAVE * post.action_count['save'])
+                            float(WEIGHT_SAVE * post.action_count['save'])
         view_score: float = 1.0 + \
-            float(WEIGHT_VIEW * post.action_count['view'])
-        score = 1 + (comment_score * love_score *
-                     share_score * save_score * view_score)
+                            float(WEIGHT_VIEW * post.action_count['view'])
+        score = 1 + (comment_score * love_score * share_score * save_score * view_score)
         post.score = score
         if not weight == WEIGHT_VIEW:
             post.last_activity_on = get_ist()
         post.save()
-        # leaderboard = LeaderBoardEngine.post_rank(post.hobby)
-        analyzer = Analyzer(post.account)
-        analyzer.analyze_scoreboard(post, weight)
+        leaderboard = LeaderBoardEngine.post_rank(post.hobby)
+        """
+        scoreboards = Scoreboard.objects.filter(Q(account=post.account) & Q(expires_on__gte=get_ist()))
+        if not scoreboards:
+            scoreboard: Scoreboard = Scoreboard.objects.create(account=post.account, created_at=get_ist(),
+                                                               expires_on=get_ist() + timedelta(days=7))
+        else:
+            scoreboard: Scoreboard = scoreboards.first()
+        if post.hobby.code_name in scoreboard.hobby_scores:
+            scoreboard.hobby_scores[post.hobby.code_name] += weight
+        else:
+            scoreboard.hobby_scores[post.hobby.code_name] = weight
+        net_score: float = 0.0
+        for index, (hobby, score) in enumerate(scoreboard.hobby_scores.items()):
+            net_score += score
+        scoreboard.net_score = net_score
+        scoreboard.save()
+        """
+
 
     def commit_action(self, **action):
 
@@ -79,8 +94,7 @@ class MicroActions:
 
     def commented(self, value):
         if self.user:
-            comment = UserPostComment.objects.create(
-                post_id=self.post.post_id, account=self.user, created_at=get_ist(), comment=value)
+            comment = UserPostComment.objects.create(post_id=self.post.post_id, account=self.user, created_at=get_ist(), comment=value)
             return self.commit_action(commented=True)
 
     """

@@ -62,8 +62,6 @@ class MicroActions:
             post.last_activity_on = get_ist()
         post.save()
         # leaderboard = LeaderBoardEngine.post_rank(post.hobby)
-        analyzer = Analyzer(post.account)
-        analyzer.analyze_scoreboard(post, weight)
 
     def commit_action(self, **action):
 

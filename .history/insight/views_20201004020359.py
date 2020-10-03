@@ -166,6 +166,20 @@ class CreatePost(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
+    def verify_token(self):
+        if 'HTTP_AUTHORIZATION' in self.request.META:
+            token_key = self.request.META.get('HTTP_AUTHORIZATION')
+            token_key = "".join(token_key.split('Token ')
+                                ) if 'Token' in token_key else token_key
+            token = Token.objects.filter(key=token_key)
+            if token:
+                token = token.first()
+                self.user: Account = token.user
+                self.valid_user = True
+            else:
+                self.valid_user = False
+        else:
+            self.valid_user = False
 
     def post(self, request):
         data: dict = json.loads(request.body)
@@ -207,15 +221,35 @@ class CreatePost(APIView):
                     else:
                         tag_query = Q(tag=tag)
                 
-                if tag_query:
-                  tags_present_in_db = Tags.objects.filter(tag_query).values_list('tag',flat=True)
-                  if len(all_tags) != len(tags_present_in_db):
+                tags_present_in_db = Tags.objects.filter(tag_query).values_list('tag',flat=True)
+                if len(all_tags) != len(tags_present_in_db):
                     # find all tags which are not present in db
-                    tags_not_in_db = set(all_tags).difference(tags_present_in_db)
-                    if len(tags_not_in_db) > 0:
-                      tags = Tags.objects.bulk_create(
-                         [Tags(tag=tag_name, created_at=get_ist(), first_used=post.post_id) for tag_name in
-                          tags_not_in_db])
+
+
+
+            # all_tags = post.hastags + post.atags
+            # if all_tags:
+            #     tag_query = None
+            #     for tag in all_tags:
+            #         if not tag_query:
+            #             tag_query = Q(tag=tag)
+            #         else:
+            #             tag_query = tag_query | Q(tag=tag)
+
+            #     tag_query_length = len(tag_query)
+            #     tags_present = Tags.objects.filter(tag_query)
+            #     tags_present_length = len(tags_present)
+            #     if tag_query_length - tags_present_length > 0:
+            #         present_tag_names = [tag.tag for tag in tags_present]
+            #         not_present_tags = filter(
+            #             lambda tag: tag not in present_tag_names, all_tags)
+            #         tags = Tags.objects.bulk_create(
+            #             [Tags(tag=tag_name, created_at=get_ist(), first_used=post.post_id) for tag_name in
+            #              not_present_tags])
+
+            # notify = notify_about_new_post.delay(
+            #     post.post_id, post.hobby_name, post.account_id)
+            # Future Scope
             return Response({"msg": "successful"}, status=status.HTTP_201_CREATED)
         else:
             return Response({"msg": "Post Creation Failed. Try again later"}, status=status.HTTP_400_BAD_REQUEST)
