@@ -7,7 +7,7 @@ from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
 from rest_framework.authtoken.models import Token
-from djongo import models as mongo_models 
+from djongo import models as mongo_models
 from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
 
 
@@ -38,7 +38,7 @@ class AccountManager(BaseUserManager):
 class Account(AbstractBaseUser, PermissionsMixin):
     # emailId or phone number without country code
     account_id = models.CharField(
-        max_length=50, default='account_id', primary_key=True)
+        max_length=20, default='account_id', primary_key=True)
     id_type = models.CharField(max_length=6, default='PHONE')  # PHONE or EMAIL
     joined_at = models.DateField(default=get_ist_date())
     username = models.CharField(
@@ -166,7 +166,7 @@ class Leaderboard(models.Model):
 class Tags(models.Model):
     tag = models.TextField(primary_key=True)
     created_at = models.DateTimeField(default=get_ist())
-    first_used = models.CharField(max_length=50, default='')
+    first_used = models.CharField(max_length=20, default='')
 
 
 class Places(models.Model):
@@ -186,12 +186,14 @@ class RankBadge(models.Model):
     rank = models.IntegerField(default=0)
     score = models.DecimalField(max_digits=7, decimal_places=3, default=0.0)
 
+
 class UserPostComment(models.Model):
     post_id = models.CharField(max_length=22, default='')
     account = models.ForeignKey(Account, on_delete=models.CASCADE, default='account_id')
     comment = models.TextField()
     created_at = models.DateTimeField(default=get_ist())
     count = models.IntegerField(default=0)
+
 
 """
 
@@ -209,3 +211,38 @@ class Scoreboard(models.Model):
     rank = models.IntegerField(default=0)
 
 
+class TeamMember(models.Model):
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, default='account_id')
+    assigned_at = models.DateTimeField(default=get_ist())
+    position = models.TextField()
+    description = models.TextField()
+    is_head = models.BooleanField(default=False)
+    community_id = models.CharField(max_length=26)
+
+    def edit(self, **data):
+        for key in data.keys():
+            self.__dict__[key] = data[key]
+        self.save()
+
+
+class CommunityMember(models.Model):
+    created_at = models.DateTimeField(default=get_ist())
+    community_id = models.CharField(max_length=26)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, default='account_id')
+    is_team_member = models.BooleanField(default=False)
+    is_team_head = models.BooleanField(default=False)
+
+
+class Community(models.Model):
+    community_id = models.CharField(max_length=26, primary_key=True, default='')
+    name = models.TextField()
+    tag = models.CharField(max_length=50, uinque=True)
+    description = models.TextField()
+    hobbies = ArrayField(models.CharField(max_length=30), default=list)
+    image = models.TextField()
+    created_at = models.DateTimeField(default=get_ist())
+
+    def edit(self, **data):
+        for key in data.keys():
+            self.__dict__[key] = data[key]
+        self.save()
