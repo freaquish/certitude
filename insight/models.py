@@ -1,14 +1,13 @@
-from django.db import models
-from django.contrib.gis.db import models as gis_models
-from django.contrib.postgres.fields import ArrayField, JSONField
-from .utils import *
-from django.contrib.gis.geos.point import Point
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
+from django.contrib.gis.db import models as gis_models
+# from django.contrib.gis.geos.point import Point
+from django.contrib.postgres.fields import ArrayField, JSONField
+from django.db import models
 from rest_framework.authtoken.models import Token
-from djongo import models as mongo_models
-from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
+
+from .utils import *
 
 
 # Create your models here.
