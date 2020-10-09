@@ -247,8 +247,8 @@ class Community(models.Model):
         self.save()
 
 
-class Competitions(models.Model):
-    competition_id = models.CharField(max_length=36, unique=True)
+class Competition(models.Model):
+    competition_id = models.CharField(max_length=36, primary_key=True)
     community = models.ForeignKey(Community, on_delete=models.CASCADE,default='')
     name = models.TextField()
     tag = models.CharField(max_length=50, unique=True)
@@ -259,6 +259,9 @@ class Competitions(models.Model):
     hobbies = ArrayField(models.CharField(max_length=30), default=list)
     is_global = models.BooleanField(default=False)
     result_date = models.DateTimeField(default = get_ist())
+    is_unique_post = models.BooleanField(default=False)
+    submission_per_user = models.IntegerField(default=0)
+    rules_policy = models.TextField()
 
 
 class CommunityPost(models.Model):
