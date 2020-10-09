@@ -165,7 +165,7 @@ class Leaderboard(models.Model):
 class Tags(models.Model):
     tag = models.TextField(primary_key=True)
     created_at = models.DateTimeField(default=get_ist())
-    first_used = models.CharField(max_length=20, default='')
+    first_used = models.CharField(max_length=22, default='')
 
 
 class Places(models.Model):
@@ -210,13 +210,15 @@ class Scoreboard(models.Model):
     rank = models.IntegerField(default=0)
 
 
-class TeamMember(models.Model):
-    account = models.ForeignKey(Account, on_delete=models.CASCADE, default='account_id')
-    assigned_at = models.DateTimeField(default=get_ist())
-    position = models.TextField()
+
+class Community(models.Model):
+    community_id = models.CharField(max_length=26, primary_key=True, default='')
+    name = models.TextField()
+    tag = models.CharField(max_length=50, unique=True)
     description = models.TextField()
-    is_head = models.BooleanField(default=False)
-    community_id = models.CharField(max_length=26)
+    hobbies = ArrayField(models.CharField(max_length=30), default=list)
+    image = models.TextField()
+    created_at = models.DateTimeField(default=get_ist())
 
     def edit(self, **data):
         for key in data.keys():
@@ -226,20 +228,19 @@ class TeamMember(models.Model):
 
 class CommunityMember(models.Model):
     created_at = models.DateTimeField(default=get_ist())
-    community_id = models.CharField(max_length=26)
-    account = models.ForeignKey(Account, on_delete=models.CASCADE, default='account_id')
+    community = models.ForeignKey(Community, on_delete=models.CASCADE, related_name='community', default='')
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, default='account_id', related_name='account')
     is_team_member = models.BooleanField(default=False)
     is_team_head = models.BooleanField(default=False)
 
 
-class Community(models.Model):
-    community_id = models.CharField(max_length=26, primary_key=True, default='')
-    name = models.TextField()
-    tag = models.CharField(max_length=50, uinque=True)
+class TeamMember(models.Model):
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, default='account_id', related_name='account')
+    assigned_at = models.DateTimeField(default=get_ist())
+    position = models.TextField()
     description = models.TextField()
-    hobbies = ArrayField(models.CharField(max_length=30), default=list)
-    image = models.TextField()
-    created_at = models.DateTimeField(default=get_ist())
+    is_head = models.BooleanField(default=False)
+    community = models.ForeignKey(Community, on_delete=models.CASCADE, related_name='community', default='')
 
     def edit(self, **data):
         for key in data.keys():

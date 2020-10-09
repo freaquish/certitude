@@ -21,5 +21,6 @@ urlpatterns = [
     path('association/', include('insight.association.urls')),
     path('notification/', include('insight.notifications.urls')),
     path('search/', include('insight.search.urls')),
-    path('leaderboard/', include('insight.leaderboard.urls'))
+    path('leaderboard/', include('insight.leaderboard.urls')),
+    path('community/', include('insight.community.urls')),
 ]
