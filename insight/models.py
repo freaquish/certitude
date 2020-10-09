@@ -248,7 +248,8 @@ class Community(models.Model):
 
 
 class Competitions(models.Model):
-    community = models.ForeignKey(Community, on_delete=models.CASCADE,default='x')
+    competition_id = models.CharField(max_length=36, unique=True)
+    community = models.ForeignKey(Community, on_delete=models.CASCADE,default='')
     name = models.TextField()
     tag = models.CharField(max_length=50, unique=True)
     description = models.TextField()
@@ -257,3 +258,11 @@ class Competitions(models.Model):
     end_at = models.DateTimeField(default=get_ist())
     hobbies = ArrayField(models.CharField(max_length=30), default=list)
     is_global = models.BooleanField(default=False)
+    result_date = models.DateTimeField(default = get_ist())
+
+
+class CommunityPost(models.Model):
+    post_id = models.CharField(max_length=22,default='')
+    community = models.ForeignKey(Community, on_delete=models.CASCADE, default = '')
+    created_at = models.DateTimeField(default=get_ist())
+    

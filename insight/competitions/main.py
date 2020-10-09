@@ -37,7 +37,7 @@ class CompetitionManager:
             communities: QuerySet = Community.objects.filter(community_id=community_id)
             community_members: QuerySet = CommunityMember.objects.filter(\
                                                                         Q(Q(account=self.user) | Q(account__account_id=member_id)) & Q(community_id=community_id))
-            """Checking the creator of competition ??? Head or Not """
+            """Checking the creator of competition ? Head or Not """
             if communities and len(community_members) == 2:
                 heads : QuerySet = community_members.filter(is_team_head = True)
                 if heads:
