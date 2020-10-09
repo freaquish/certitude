@@ -4,6 +4,7 @@ from insight.notifications.manager import NotificationManager
 from insight.association.serializer import FriendListSerializer, FollowSerializer
 
 #TODO: Migrate Friends and Followers on models based view
+''' Author: Piyush Jaiswal and Suyash Maddhessiya'''
 
 class AssociationEngine:
 

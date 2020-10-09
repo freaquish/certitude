@@ -4,7 +4,7 @@ from secrets import token_urlsafe
 
 """
 Copyright (c) : freaquish
-Authors: Piyush Jaiswal
+Authors: Piyush Jaiswal, Suyash Maddhessiya
 
 
 """

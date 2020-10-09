@@ -245,3 +245,15 @@ class Community(models.Model):
         for key in data.keys():
             self.__dict__[key] = data[key]
         self.save()
+
+
+class Competitions(models.Model):
+    community = models.ForeignKey(Community, on_delete=models.CASCADE,default='x')
+    name = models.TextField()
+    tag = models.CharField(max_length=50, unique=True)
+    description = models.TextField()
+    competitions_banner = models.TextField()
+    start_at = models.DateTimeField(default=get_ist())
+    end_at = models.DateTimeField(default=get_ist())
+    hobbies = ArrayField(models.CharField(max_length=30), default=list)
+    is_global = models.BooleanField(default=False)
