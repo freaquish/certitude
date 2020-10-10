@@ -12,18 +12,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='post',
-            name='avatar',
-        ),
-        migrations.RemoveField(
-            model_name='post',
-            name='hobby_name',
-        ),
-        migrations.RemoveField(
-            model_name='post',
-            name='hobby_weight',
-        ),
         migrations.AlterField(
             model_name='account',
             name='joined_at',
@@ -32,12 +20,14 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='actionstore',
             name='loved_at',
-            field=models.DateTimeField(default=datetime.datetime(2020, 8, 25, 15, 56, 31, 219467, tzinfo=utc)),
+            field=models.DateTimeField(default=datetime.datetime(
+                2020, 8, 25, 15, 56, 31, 219467, tzinfo=utc)),
         ),
         migrations.AlterField(
             model_name='actionstore',
             name='viewed_at',
-            field=models.DateTimeField(default=datetime.datetime(2020, 8, 25, 15, 56, 31, 219597, tzinfo=utc)),
+            field=models.DateTimeField(default=datetime.datetime(
+                2020, 8, 25, 15, 56, 31, 219597, tzinfo=utc)),
         ),
         migrations.AlterField(
             model_name='leaderboard',
@@ -52,17 +42,20 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='notification',
             name='created',
-            field=models.DateTimeField(default=datetime.datetime(2020, 8, 25, 15, 56, 31, 221169, tzinfo=utc)),
+            field=models.DateTimeField(default=datetime.datetime(
+                2020, 8, 25, 15, 56, 31, 221169, tzinfo=utc)),
         ),
         migrations.AlterField(
             model_name='post',
             name='created_at',
-            field=models.DateTimeField(default=datetime.datetime(2020, 8, 25, 15, 56, 31, 214581, tzinfo=utc)),
+            field=models.DateTimeField(default=datetime.datetime(
+                2020, 8, 25, 15, 56, 31, 214581, tzinfo=utc)),
         ),
         migrations.AlterField(
             model_name='tags',
             name='created_at',
-            field=models.DateTimeField(default=datetime.datetime(2020, 8, 25, 15, 56, 31, 225250, tzinfo=utc)),
+            field=models.DateTimeField(default=datetime.datetime(
+                2020, 8, 25, 15, 56, 31, 225250, tzinfo=utc)),
         ),
         migrations.AlterField(
             model_name='useractionref',
