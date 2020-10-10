@@ -188,8 +188,7 @@ class RankBadge(models.Model):
 
 class UserPostComment(models.Model):
     post_id = models.CharField(max_length=22, default='')
-    account = models.ForeignKey(
-        Account, on_delete=models.CASCADE, default='account_id')
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, default='account_id')
     comment = models.TextField()
     created_at = models.DateTimeField(default=get_ist())
     count = models.IntegerField(default=0)
@@ -207,14 +206,13 @@ class Scoreboard(models.Model):
     created_at = models.DateField(default=get_ist_date())
     expires_on = models.DateField(default=get_ist_date())
     hobby_scores = JSONField(default=dict)
-    net_score = models.DecimalField(
-        default=0.0, max_digits=8, decimal_places=4)
+    net_score = models.DecimalField(default=0.0, max_digits=8, decimal_places=4)
     rank = models.IntegerField(default=0)
 
 
+
 class Community(models.Model):
-    community_id = models.CharField(
-        max_length=26, primary_key=True, default='')
+    community_id = models.CharField(max_length=26, primary_key=True, default='')
     name = models.TextField()
     tag = models.CharField(max_length=50, unique=True)
     description = models.TextField()
@@ -230,34 +228,32 @@ class Community(models.Model):
 
 class CommunityMember(models.Model):
     created_at = models.DateTimeField(default=get_ist())
-    community = models.ForeignKey(
-        Community, on_delete=models.CASCADE, related_name='community', default='')
-    account = models.ForeignKey(
-        Account, on_delete=models.CASCADE, default='account_id', related_name='account')
+    community = models.ForeignKey(Community, on_delete=models.CASCADE, related_name='community', default='')
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, default='account_id', related_name='account')
     is_team_member = models.BooleanField(default=False)
     is_team_head = models.BooleanField(default=False)
 
 
 class TeamMember(models.Model):
-    account = models.ForeignKey(
-        Account, on_delete=models.CASCADE, default='account_id', related_name='account')
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, default='account_id', related_name='account')
     assigned_at = models.DateTimeField(default=get_ist())
     position = models.TextField()
     description = models.TextField()
     is_head = models.BooleanField(default=False)
-    community = models.ForeignKey(
-        Community, on_delete=models.CASCADE, related_name='community', default='')
+    community = models.ForeignKey(Community, on_delete=models.CASCADE, related_name='community', default='')
 
     def edit(self, **data):
         for key in data.keys():
             self.__dict__[key] = data[key]
+<<<<<<< HEAD
+        self.save()
+=======
         self.save()
 
 
 class Competition(models.Model):
     competition_id = models.CharField(max_length=36, primary_key=True)
-    community = models.ForeignKey(
-        Community, on_delete=models.CASCADE, default='')
+    community = models.ForeignKey(Community, on_delete=models.CASCADE,default='')
     name = models.TextField()
     tag = models.CharField(max_length=50, unique=True)
     description = models.TextField()
@@ -266,14 +262,15 @@ class Competition(models.Model):
     end_at = models.DateTimeField(default=get_ist())
     hobbies = ArrayField(models.CharField(max_length=30), default=list)
     is_global = models.BooleanField(default=False)
-    result_date = models.DateTimeField(default=get_ist())
+    result_date = models.DateTimeField(default = get_ist())
     is_unique_post = models.BooleanField(default=False)
     submission_per_user = models.IntegerField(default=0)
     rules_policy = models.TextField()
 
 
 class CommunityPost(models.Model):
-    post_id = models.CharField(max_length=22, default='')
-    community = models.ForeignKey(
-        Community, on_delete=models.CASCADE, default='')
+    post_id = models.CharField(max_length=22,default='')
+    community = models.ForeignKey(Community, on_delete=models.CASCADE, default = '')
     created_at = models.DateTimeField(default=get_ist())
+    
+>>>>>>> 9007a15422b15fe2a40cc22b3fbb2dcb35e7d1ad

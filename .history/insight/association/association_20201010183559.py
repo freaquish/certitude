@@ -3,11 +3,8 @@ from django.db.models import Q
 from insight.notifications.manager import NotificationManager
 from insight.association.serializer import FriendListSerializer, FollowSerializer
 
-# TODO: Migrate Friends and Followers on models based view
-"""
- Author: Piyush Jaiswal and Suyash Maddhessiya
-"""
-
+#TODO: Migrate Friends and Followers on models based view
+''' Author: Piyush Jaiswal and Suyash Maddhessiya'''
 
 class AssociationEngine:
 
@@ -32,7 +29,7 @@ class AssociationEngine:
 
     def follow_target(self, target: Account):
         if target.account_id in self.user.following:
-            return None
+            return None 
         self.user.following.append(target.account_id)
         self.user.following_count += 1
         target.follower_count += 1

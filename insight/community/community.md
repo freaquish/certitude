@@ -1,6 +1,6 @@
 ###Community
 
-**Authors :** Piyush Jaiswal 
+**Authors :** Piyush Jaiswal and Suyash Maddhessiya
 
 Community Managers handles all the operations plausible in community except\
 community leaderboard. The scope of operation depends upon user running the\
