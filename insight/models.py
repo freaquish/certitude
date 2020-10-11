@@ -205,9 +205,10 @@ class UserPostComment(models.Model):
 
 class ScorePost(models.Model):
     score = models.DecimalField(max_digits=7, decimal_places=3, default=0.0)
+    freshness_score = models.DecimalField(max_digits=9, decimal_places=7, default=0.0)
+    net_score = models.DecimalField(max_digits=7, decimal_places=3, default=0.0)
     rank = models.IntegerField(default=0)
     post = models.ForeignKey(Post, on_delete=models.CASCADE, default='')
-    hobby = models.CharField(max_length=30, default='', primary_key=True)
     created_at = models.DateTimeField(default=get_ist())
     last_modified = models.DateTimeField(default=get_ist())
 
@@ -217,6 +218,7 @@ class Scoreboard(models.Model):
     created_at = models.DateField(default=get_ist_date())
     expires_on = models.DateField(default=get_ist_date())
     hobby_scores = JSONField(default=dict)
+    retention = models.DecimalField(max_digits=9, decimal_places=5, default=0.0)
     net_score = models.DecimalField(
         default=0.0, max_digits=8, decimal_places=4)
     rank = models.IntegerField(default=0)

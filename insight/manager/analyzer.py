@@ -5,18 +5,11 @@
  API can manage hobby_map and primary hobby of user for personalized experience
 """
 from datetime import timedelta
-from insight.models import Hobby, Post, Account, get_ist, Scoreboard
-from django.db.models import Q
+from insight.models import Post, Account, get_ist, Scoreboard, ScorePost
+from django.db.models import Q, QuerySet
+from math import log
 
-
-WEIGHT_VIEW: float = 0.20
-WEIGHT_LOVE: float = 0.50
-WEIGHT_COMMENT: float = 0.20
-WEIGHT_SAVE: float = 0.80
-WEIGHT_SHARE: float = 0.85
-WEIGHT_CREATE: float = 0.90
-WEIGHT_FOLLOWING: float = 0.45
-WEIGHT_FRIEND: float = 0.85
+WEIGHT_CREATE: float = 0.80
 
 
 class Analyzer:
@@ -30,9 +23,10 @@ class Analyzer:
     """
 
     def max_in_map(self):
-        maximum_hobby = ''
         maximum_weight = 0.0
-        for key in self.user.hobby_map.keys():
+        keys = self.user.hobby_map.keys()
+        maximum = keys[0]
+        for key in keys:
             if self.user.hobby_map[key] > maximum_weight:
                 maximum = key
         return maximum
@@ -54,10 +48,22 @@ class Analyzer:
 
     def analyze_create_post(self, post: Post):
         self.analyze(post, WEIGHT_CREATE)
-        weight = WEIGHT_CREATE
-        self.analyze_scoreboard(post, weight)
+        self.analyze_scoreboard(post)
 
-    def analyze_scoreboard(self, post: Post, weight):
+    @staticmethod
+    def user_activity(scoreboard: Scoreboard):
+        posts: QuerySet = Post.objects.filter(
+            Q(created_at__gte=scoreboard.created_at) & Q(created_at__lte=scoreboard.expires_on)
+        )
+        if posts:
+            number: int = len(posts)
+            avg_number_in_week: float = number / 4  # minimum required posts are 4 in a week
+            if avg_number_in_week > 1:
+                scoreboard.retention = log(avg_number_in_week)
+                scoreboard.net_score += scoreboard.retention
+                scoreboard.save()
+
+    def analyze_scoreboard(self, post: Post):
         scoreboards = Scoreboard.objects.filter(
             Q(account=post.account) & Q(expires_on__gte=get_ist())
         )
@@ -66,12 +72,16 @@ class Analyzer:
                                                                expires_on=get_ist() + timedelta(days=7))
         else:
             scoreboard: Scoreboard = scoreboards.first()
-        if post.hobby.code_name in scoreboard.hobby_scores:
-            scoreboard.hobby_scores[post.hobby.code_name] += weight
-        else:
-            scoreboard.hobby_scores[post.hobby.code_name] = weight
+        score_posts: QuerySet = ScorePost.objects.filter(post=post)
+        if score_posts:
+            score_post: ScorePost = score_posts.first()
+            if scoreboard.hobby_scores[post.hobby.code_name]:
+                scoreboard.hobby_scores[post.hobby.code_name] += score_post.net_score
+            else:
+                scoreboard.hobby_scores[post.hobby.code_name] = score_post.net_score
         net_score: float = 0.0
-        for index, (hobby, score) in enumerate(scoreboard.hobby_scores.items()):
+        for hobby, score in scoreboard.hobby_scores.items():
             net_score += score
         scoreboard.net_score = net_score
         scoreboard.save()
+        self.user_activity(scoreboard)
