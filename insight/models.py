@@ -203,6 +203,15 @@ class UserPostComment(models.Model):
 """
 
 
+class ScorePost(models.Model):
+    score = models.DecimalField(max_digits=7, decimal_places=3, default=0.0)
+    rank = models.IntegerField(default=0)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, default='')
+    hobby = models.CharField(max_length=30, default='', primary_key=True)
+    created_at = models.DateTimeField(default=get_ist())
+    last_modified = models.DateTimeField(default=get_ist())
+
+
 class Scoreboard(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     created_at = models.DateField(default=get_ist_date())
@@ -271,6 +280,7 @@ class Competition(models.Model):
     is_unique_post = models.BooleanField(default=False)
     submission_per_user = models.IntegerField(default=0)
     rules_policy = models.TextField()
+    number_post_submitted = models.IntegerField(default=0)
 
 
 class CommunityPost(models.Model):
