@@ -1,26 +1,19 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.authentication import TokenAuthentication
-from rest_framework.generics import GenericAPIView
-from rest_framework.authtoken.models import Token
-
-from insight.manager import analyzer
-
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework import status
-from django.db.models import QuerySet
-from django.db.models import Q
-
-
-from insight.actions.post_actions import authenticated_mirco_actions, general_micro_actions, authenticated_association, MicroActions
-from insight.paginator import FeedPaginator
-from insight.models import *
-from insight.actions.feed import Feed
-from insight.utils import *
-from insight.serializers import *
 import json
 
+from django.db.models import QuerySet
+from rest_framework import status
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.generics import GenericAPIView
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from insight.actions.feed import Feed
+from insight.actions.post_actions import authenticated_mirco_actions, general_micro_actions, authenticated_association
+from insight.manager import analyzer
+from insight.paginator import FeedPaginator
+from insight.serializers import *
 
 """
   Identify using token provided in header and returns Account,valid_user
@@ -166,11 +159,10 @@ class CreatePost(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
-
     def post(self, request):
         data: dict = json.loads(request.body)
         if True:
-            self.user: Account = request.user 
+            self.user: Account = request.user
             self.valid_user = True if self.user else False
             if not self.valid_user:
                 return Response({}, status=status.HTTP_403_FORBIDDEN)
@@ -206,19 +198,18 @@ class CreatePost(APIView):
                         tag_query = tag_query | Q(tag=tag)
                     else:
                         tag_query = Q(tag=tag)
-                
+
                 if tag_query:
-                  tags_present_in_db = Tags.objects.filter(tag_query).values_list('tag',flat=True)
-                  if len(all_tags) != len(tags_present_in_db):
-                    # find all tags which are not present in db
-                    tags_not_in_db = set(all_tags).difference(tags_present_in_db)
-                    if len(tags_not_in_db) > 0:
-                      tags = Tags.objects.bulk_create(
-                         [Tags(tag=tag_name, created_at=get_ist(), first_used=post.post_id) for tag_name in
-                          tags_not_in_db])
+                    tags_present_in_db = Tags.objects.filter(tag_query).values_list('tag', flat=True)
+                    if len(all_tags) != len(tags_present_in_db):
+                        # find all tags which are not present in db
+                        tags_not_in_db = set(all_tags).difference(tags_present_in_db)
+                        if len(tags_not_in_db) > 0:
+                            tags = Tags.objects.bulk_create(
+                                [Tags(tag=tag_name, created_at=get_ist(), first_used=post.post_id) for tag_name in
+                                 tags_not_in_db])
             return Response({"msg": "successful"}, status=status.HTTP_201_CREATED)
-        else:
-            return Response({"msg": "Post Creation Failed. Try again later"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"msg": "Post Creation Failed. Try again later"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class GeneralMicroActionView(APIView):
@@ -243,9 +234,9 @@ class GeneralMicroActionView(APIView):
             authenticated_mirco_actions(
                 {"action": data['action'], "pid": data['pid'], 'comment': data['comment']}, token, req_type='POST')
             if data['action'] == 'comment':
-              comments = UserPostComment.objects.filter(post_id=data['pid'])
-              serialized = CommentSerializer(comments).render()
-              return Response({'comments': serialized}, status=status.HTTP_200_OK)
+                comments = UserPostComment.objects.filter(post_id=data['pid'])
+                serialized = CommentSerializer(comments).render()
+                return Response({'comments': serialized}, status=status.HTTP_200_OK)
         return Response({}, status=status.HTTP_200_OK)
 
 
@@ -254,6 +245,7 @@ class ManageAssociation(APIView):
     """
     Must not deprecate, currently used in PostBox
     """
+
     def get(self, request):
         if 'HTTP_AUTHORIZATION' in request.META:
             token = request.META.get('HTTP_AUTHORIZATION')
@@ -272,29 +264,31 @@ class OnePostView(APIView):
        mapped to url /post/<pk:post>
        will find the post and comment data and sent to user
     """
+
     def get(self, request, pk):
-      user = request.user
-      posts = Post.objects.filter(post_id=pk)
-      if not posts:
-        return Response({}, status=status.HTTP_404_NOT_FOUND)
-      post = posts.first()
-      actions = ActionStore.objects.filter(post_id=post.post_id)
-      serialized = PostSerializer([post],user).render_with_action(actions)[0]
-      comments = UserPostComment.objects.filter(post_id=post.post_id).order_by('created_at')
-      serialized_comments = CommentSerializer(comments) 
-      serialized['footer']['comments'] = serialized_comments.render() 
-      return Response({'post': serialized}, status=status.HTTP_200_OK)
+        user = request.user
+        posts = Post.objects.filter(post_id=pk)
+        if not posts:
+            return Response({}, status=status.HTTP_404_NOT_FOUND)
+        post = posts.first()
+        actions = ActionStore.objects.filter(post_id=post.post_id)
+        serialized = PostSerializer([post], user).render_with_action(actions)[0]
+        comments = UserPostComment.objects.filter(post_id=post.post_id).order_by('created_at')
+        serialized_comments = CommentSerializer(comments)
+        serialized['footer']['comments'] = serialized_comments.render()
+        return Response({'post': serialized}, status=status.HTTP_200_OK)
 
 
 class FetchComment(APIView):
-  authentication_classes = [TokenAuthentication]
-  permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
-  def get(self, request, pid: str):
-    user = request.user 
-    comments = UserPostComment.objects.filter(post_id=pid).order_by('created_at')
-    serialized = CommentSerializer(comments)
-    return Response({"comments":serialized.render()}, status=status.HTTP_200_OK)
+    def get(self, request, pid: str):
+        user = request.user
+        comments = UserPostComment.objects.filter(post_id=pid).order_by('created_at')
+        serialized = CommentSerializer(comments)
+        return Response({"comments": serialized.render()}, status=status.HTTP_200_OK)
+
 
 class ThirdPartyProfileView(APIView):
     permission_classes = [AllowAny]
@@ -326,14 +320,15 @@ class ThirdPartyProfileView(APIView):
                 following = 1 if account.account_id in self.user.following else 0
                 friends = 1 if account.account_id in self.user.friend else 0
                 if friends == 0:
-                    notifications = Notification.objects.filter(Q(Q(Q(to=account) | Q(to=self.user)) & Q(Q(header=self.user.username) | Q(header=account.username))) & Q(type='REQU'))
+                    notifications = Notification.objects.filter(Q(Q(Q(to=account) | Q(to=self.user)) & Q(
+                        Q(header=self.user.username) | Q(header=account.username))) & Q(type='REQU'))
                     sent_notifications: QuerySet = notifications.filter(Q(to=account) & Q(header=self.user.username))
-                    received_notifications: QuerySet = notifications.filter(Q(to=self.user) & Q(header=account.username))
+                    received_notifications: QuerySet = notifications.filter(
+                        Q(to=self.user) & Q(header=account.username))
                     if sent_notifications:
                         serialized['isSentRequest'] = 1
                     if received_notifications:
                         serialized['isReceivedRequest'] = 1
-
 
             serialized['following'] = following
             serialized['friend'] = friends

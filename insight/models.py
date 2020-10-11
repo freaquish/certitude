@@ -132,6 +132,8 @@ class ActionStore(models.Model):
     shared = models.BooleanField(default=False)
     saved = models.BooleanField(default=False)
     commented = models.BooleanField(default=True)
+    # [competition_name]
+    upvoted = ArrayField(models.TextField(), default=list)
 
     def update(self, **kwargs):
         for key in kwargs.keys():
@@ -176,8 +178,7 @@ class Places(models.Model):
 
 class RankBadge(models.Model):
     competition_name = models.TextField()
-    date_field = models.DateField(default=get_ist_date())
-    time_field = models.TimeField(default=get_ist_time())
+    created_at = models.DateTimeField(default=get_ist())
     hobby = models.ForeignKey(Hobby, on_delete=models.CASCADE, default='')
     account = models.ForeignKey(
         Account, on_delete=models.CASCADE, default='account_id')
@@ -200,6 +201,15 @@ class UserPostComment(models.Model):
     LeaderBoard Competition, team and community models  
 
 """
+
+
+class ScorePost(models.Model):
+    score = models.DecimalField(max_digits=7, decimal_places=3, default=0.0)
+    rank = models.IntegerField(default=0)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, default='')
+    hobby = models.CharField(max_length=30, default='', primary_key=True)
+    created_at = models.DateTimeField(default=get_ist())
+    last_modified = models.DateTimeField(default=get_ist())
 
 
 class Scoreboard(models.Model):
@@ -270,6 +280,7 @@ class Competition(models.Model):
     is_unique_post = models.BooleanField(default=False)
     submission_per_user = models.IntegerField(default=0)
     rules_policy = models.TextField()
+    number_post_submitted = models.IntegerField(default=0)
 
 
 class CommunityPost(models.Model):

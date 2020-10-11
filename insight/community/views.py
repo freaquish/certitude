@@ -44,5 +44,7 @@ class GetCommunity(APIView):
             if communities:
                 serialized_data = CommunityCardSerializer(communities).render()
             return Response({"communities": serialized_data}, status=status.HTTP_200_OK)
+        if 'about' in request.GET:
+            pass
         return Response({}, status=status.HTTP_200_OK)
 

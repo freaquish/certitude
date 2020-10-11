@@ -3,6 +3,8 @@ from rest_framework.pagination import CursorPagination
 
 DEFAULT_PAGE = 1
 DEFAULT_PAGE_SIZE = 5
+
+
 class FeedPaginator(CursorPagination):
     page= DEFAULT_PAGE
     page_size = DEFAULT_PAGE_SIZE
