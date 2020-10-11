@@ -1,4 +1,4 @@
-from insight.models import Post, ActionStore, Account
+from insight.models import Post, ActionStore, Account, ScorePost
 from celery import shared_task
 from django.db.models import QuerySet
 from insight.utils import get_ist
@@ -47,6 +47,9 @@ class PostActions:
             return None
         post: Post = posts.first()
         actions: QuerySet = ActionStore.objects.filter(post_id=post_id)
+        score_post, created = ScorePost.objects.get_or_create(post=post)
+        if created:
+            score_post.created_at = get_ist()
         score = 0
         loved: QuerySet = actions.filter(loved=True)
         viewed: QuerySet = actions.filter(viewed=True)
@@ -63,6 +66,7 @@ class PostActions:
             post.action_count['share'] = len(shared)
         if commented:
             post.action_count['comment'] = len(commented)
-
+        score_post.last_modified = get_ist()
         delta_date = get_ist() - post.created_at
         freshness_score = log(delta_date.days) if delta_date.days > 0 else log(0.01)
+

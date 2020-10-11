@@ -241,22 +241,22 @@ class Community(models.Model):
 class CommunityMember(models.Model):
     created_at = models.DateTimeField(default=get_ist())
     community = models.ForeignKey(
-        Community, on_delete=models.CASCADE, related_name='community', default='')
+        Community, on_delete=models.CASCADE, related_name='community_member_community', default='')
     account = models.ForeignKey(
-        Account, on_delete=models.CASCADE, default='account_id', related_name='account')
+        Account, on_delete=models.CASCADE, default='account_id', related_name='community_member_account')
     is_team_member = models.BooleanField(default=False)
     is_team_head = models.BooleanField(default=False)
 
 
 class TeamMember(models.Model):
     account = models.ForeignKey(
-        Account, on_delete=models.CASCADE, default='account_id', related_name='account')
+        Account, on_delete=models.CASCADE, default='account_id', related_name='team_account')
     assigned_at = models.DateTimeField(default=get_ist())
     position = models.TextField()
     description = models.TextField()
     is_head = models.BooleanField(default=False)
     community = models.ForeignKey(
-        Community, on_delete=models.CASCADE, related_name='community', default='')
+        Community, on_delete=models.CASCADE, related_name='team_community', default='')
 
     def edit(self, **data):
         for key in data.keys():
