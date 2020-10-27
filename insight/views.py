@@ -11,7 +11,8 @@ from rest_framework.views import APIView
 
 from insight.actions.feed import Feed
 from insight.actions.post_actions import authenticated_mirco_actions, general_micro_actions, authenticated_association
-from insight.manager import analyzer
+from insight.actions.main import PostActions
+from insight.manager import analyzer, managers
 from insight.paginator import FeedPaginator
 from insight.serializers import *
 
@@ -116,19 +117,14 @@ class CreateHobby(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        if not 'HTTP_AUTHORIZATION' in request.META:
-            return Response({}, status=status.HTTP_403_FORBIDDEN)
-        user: Account = Token.objects.get(
-            key=request.META.get('HTTP_AUTHORIZATION')).user
-        if not (user.is_staff and user.is_superuser):
-            return Response({}, status=status.HTTP_401_UNAUTHORIZED)
+        user: Account = request.user
         data: dict = json.loads(request.body)
         hobbies = []
         for hobby in data:
             hobbies.append(hobby)
         Hobby.objects.bulk_create(hobbies)
         hobbies_list = HobbySerializer(Hobby.objects.all(), many=True)
-        return Response({"hobbies_list": hobbies.data}, status=status.HTTP_201_CREATED)
+        return Response({"hobbies_list": hobbies_list.data}, status=status.HTTP_201_CREATED)
 
 
 class RetrieveHobby(APIView):
@@ -161,14 +157,10 @@ class CreatePost(APIView):
 
     def post(self, request):
         data: dict = json.loads(request.body)
-        if True:
-            self.user: Account = request.user
-            self.valid_user = True if self.user else False
-            if not self.valid_user:
-                return Response({}, status=status.HTTP_403_FORBIDDEN)
+        account: Account = request.user
+        if account:
             if len(data['assets']) == 0:
                 return Response({"msg": "successful"}, status=status.HTTP_201_CREATED)
-            account = self.user
             is_coord_present = False
             if 'coords' in data:
                 is_coord_present = True
@@ -186,58 +178,43 @@ class CreatePost(APIView):
             data['account'] = account
             data['hobby'] = hobby
             data['post_id'] = post_id
-            post = Post.objects.create(**data)
+            data['is_global'] = False if 'is_global' in data and data['is_global'] != 1 else True
+            post: Post = Post.create_new(**data)
             analyze_post = analyzer.Analyzer(account)
             analyze_post.analyze_create_post(post)
 
-            all_tags = post.hastags + post.atags
-            if all_tags:
-                tag_query = None
-                for tag in all_tags:
-                    if tag_query:
-                        tag_query = tag_query | Q(tag=tag)
-                    else:
-                        tag_query = Q(tag=tag)
-
-                if tag_query:
-                    tags_present_in_db = Tags.objects.filter(tag_query).values_list('tag', flat=True)
-                    if len(all_tags) != len(tags_present_in_db):
-                        # find all tags which are not present in db
-                        tags_not_in_db = set(all_tags).difference(tags_present_in_db)
-                        if len(tags_not_in_db) > 0:
-                            tags = Tags.objects.bulk_create(
-                                [Tags(tag=tag_name, created_at=get_ist(), first_used=post.post_id) for tag_name in
-                                 tags_not_in_db])
+            post_creation_signals: managers.PostCreationManager = managers.PostCreationManager(post, **data)
+            post_creation_signals.catch()
             return Response({"msg": "successful"}, status=status.HTTP_201_CREATED)
-        return Response({"msg": "Post Creation Failed. Try again later"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({}, status=status.HTTP_403_FORBIDDEN)
 
 
 class GeneralMicroActionView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        token = None
-        if 'HTTP_AUTHORIZATION' in request.META:
-            token = request.META.get('HTTP_AUTHORIZATION')
-            authenticated_mirco_actions(
-                {"action": request.GET['action'], "pid": request.GET['pid']}, token)
-        else:
-            general_micro_actions.delay(request.GET)
+        user: Account = request.user
+        posts: QuerySet = Post.objects.filter(post_id=request.GET['pid'])
+        if not posts:
+            return Response({}, status=status.HTTP_400_BAD_REQUEST)
+        post_actions: PostActions = PostActions(user, posts.first())
+        post_actions.micro_action(
+            request.GET['action'])
         return Response({}, status=status.HTTP_200_OK)
 
     def post(self, request):
         print(request.body)
         data = json.loads(request.body)
-        token = None
-        if 'HTTP_AUTHORIZATION' in request.META:
-            token = request.META.get('HTTP_AUTHORIZATION')
-            authenticated_mirco_actions(
-                {"action": data['action'], "pid": data['pid'], 'comment': data['comment']}, token, req_type='POST')
-            if data['action'] == 'comment':
-                comments = UserPostComment.objects.filter(post_id=data['pid'])
-                serialized = CommentSerializer(comments).render()
-                return Response({'comments': serialized}, status=status.HTTP_200_OK)
-        return Response({}, status=status.HTTP_200_OK)
+        user: Account = request.user
+        posts: QuerySet = Post.objects.filter(post_id=data['pid'])
+        if not posts:
+            return Response({}, status=status.HTTP_400_BAD_REQUEST)
+
+        post_action:PostActions = PostActions(user, posts.first())
+        post_action.micro_action(data['action'], val=data['comment'])
+        comments = UserPostComment.objects.filter(post_id=data['pid'])
+        serialized = CommentSerializer(comments).render()
+        return Response({'comments': serialized}, status=status.HTTP_200_OK)
 
 
 class ManageAssociation(APIView):
@@ -344,21 +321,9 @@ class ProfileView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
-    @staticmethod
-    def verify_token(request):
-        if not 'HTTP_AUTHORIZATION' in request.META:
-            return None
-        token_key: str = request.META.get('HTTP_AUTHORIZATION')
-        token: str = "".join(token_key.split('Token ')
-                             ) if 'Token' in token_key else token_key
-        token_objs: QuerySet = Token.objects.filter(key=token)
-        if not token_objs:
-            return None
-        token_obj: Token = token_objs.first()
-        return token_obj.user
 
     def get(self, request):
-        user = self.verify_token(request)
+        user = request.user
         if not user:
             return Response({}, status=status.HTTP_404_NOT_FOUND)
         posts = Post.objects.filter(account__account_id=user.account_id)
@@ -369,7 +334,7 @@ class ProfileView(APIView):
         return Response(serialized_account, status=status.HTTP_200_OK)
 
     def post(self, request):
-        user: Account = self.verify_token(request)
+        user: Account = request.user
         if not user:
             return Response({}, status=status.HTTP_404_NOT_FOUND)
         data = json.loads(request.body)
@@ -409,10 +374,10 @@ class PaginatedFeedView(GenericAPIView):
         user, valid = identify_token(request)
         if valid:
             feed = Feed(user)
-            queryset, actions = feed.extract_feed_known()
+            self.queryset, actions = feed.extract_feed_known()
             # serialized_actions = ActionStoreSerializer(actions).data()
-        length_queryset = len(queryset)
-        page = self.paginate_queryset(queryset)
+        length_queryset = len(self.queryset)
+        page = self.paginate_queryset(self.queryset)
 
         if page is not None:
             serialized = PostSerializer(page, user if valid else None)
@@ -423,7 +388,7 @@ class PaginatedFeedView(GenericAPIView):
                 result = self.get_paginated_response(serialized.render())
             data = result.data
         else:
-            serialized = PostSerializer(queryset, user if valid else None)
+            serialized = PostSerializer(self.queryset, user if valid else None)
             if valid:
                 data = serialized.render_with_action(actions)
             else:

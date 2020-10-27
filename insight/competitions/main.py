@@ -17,11 +17,11 @@ class CompetitionManager:
         self.community_id: str = community_id
 
     @staticmethod
-    def is_tag_unique(tag):
-        competition_exits: QuerySet = Competition.objects.filter(tag=tag)
-        if competition_exits:
-            return False
-        return True
+    def is_tag_unique(tag: str):
+        competition_exist: QuerySet = Competition.objects.filter(tag=tag)
+        if len(competition_exist) == 0 and tag.isalnum() and len(tag) > 6:
+            return True
+        return False
 
     def create_competition(self,**data):
         competition_id: str = token_urlsafe(22) + self.community_id[12:]

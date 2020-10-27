@@ -17,7 +17,7 @@ class CreateCommunity(APIView):
 
     def get(self, request):
         user: Account = request.user
-        if 'tag' in request.GET and CommunityManager.tag_unique(request.GET['tag']):
+        if 'tag' in request.GET and CommunityManager.tag_unique(request.GET['tag'].replace("@","")):
             return Response({'exist': 0}, status=status.HTTP_200_OK)
         return Response({'exist': 0}, status=status.HTTP_200_OK)
 

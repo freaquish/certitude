@@ -120,6 +120,16 @@ class Post(models.Model):
     created_at = models.DateTimeField(default=get_ist())
     rank = models.IntegerField(default=0)
     score = models.DecimalField(max_digits=7, decimal_places=3, default=0.0)
+    is_global = models.BooleanField(default=True)
+
+    def create_new(self, **kwargs):
+        data = kwargs
+        fields = self.__dict__.keys()
+        for key, value in data.items():
+            if key not in fields:
+                del data[key]
+        self.objects.create(**data)
+        return self
 
 
 class ActionStore(models.Model):
@@ -131,9 +141,9 @@ class ActionStore(models.Model):
     viewed_at = models.DateTimeField(default=get_ist())
     shared = models.BooleanField(default=False)
     saved = models.BooleanField(default=False)
-    commented = models.BooleanField(default=True)
-    # [competition_name]
-    upvoted = ArrayField(models.TextField(), default=list)
+    commented = models.BooleanField(default=False)
+    up_voted = models.BooleanField(default=False)
+    down_voted = models.BooleanField(default=False)
 
     def update(self, **kwargs):
         for key in kwargs.keys():
@@ -286,7 +296,15 @@ class Competition(models.Model):
 
 
 class CommunityPost(models.Model):
-    post_id = models.CharField(max_length=22, default='')
+    post = models.ForeignKey(
+        Post, on_delete=models.CASCADE, default='', related_name='community_post_post')
     community = models.ForeignKey(
-        Community, on_delete=models.CASCADE, default='')
+        Community, on_delete=models.CASCADE, default='', related_name='community_post_community')
+    created_at = models.DateTimeField(default=get_ist())
+
+
+class CompetitionPost(models.Model):
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, default='', related_name='competition_post_post')
+    competition = models.ForeignKey(Competition, on_delete=models.CASCADE, default='',
+                                    related_name='competition_post_competition')
     created_at = models.DateTimeField(default=get_ist())

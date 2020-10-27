@@ -19,7 +19,7 @@ class CommunityManager:
     def tag_unique(tag: str):
         community_exist: QuerySet = Community.objects.filter(tag=tag)
         account_exist: QuerySet = Account.objects.filter(username=tag)
-        if tag.isalnum() and len(community_exist) == 0 and len(account_exist) == 0:
+        if tag.isalnum() and len(tag) > 6 and len(community_exist) == 0 and len(account_exist) == 0:
             return True
         return False
 
