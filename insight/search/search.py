@@ -1,9 +1,6 @@
 from insight.models import *
-from insight.tools.wrapper import WrapperSet
 from django.db.models import Q, QuerySet, F
 from insight.serializers import *
-from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
-from insight.tools.wrapper import WrapperSet, ModelWrapper
 from fuzzywuzzy import fuzz
 
 """
@@ -83,10 +80,10 @@ class SearchEngine:
         }
 
     def search_tags(self):
-        query = SearchQuery(self.query)
         self.hobby = Hobby.objects.all()
-        tags = Tags.objects.filter(self.search_tag_query())
-        return tags
+        tags = Tags.objects.filter(self.search_tag_query()).values_list('tag', flat=True)
+        return [self.serialise_tag(tag) for tag in sorted(tags, key=lambda tag_str: fuzz.ratio(self.query, tag_str),
+                                                          reverse=True)]
 
     def search_account_query(self):
         if ' ' in self.query:
@@ -143,8 +140,9 @@ class SearchEngine:
         return Q(name__icontains=self.query)
 
     def search_users(self):
-        accounts = Account.objects.filter(self.search_account_query()).exclude(self.exclusion_user_query())
-        return accounts
+        accounts = Account.objects.filter(self.search_account_query()).exclude(self.exclusion_user_query())\
+            .values_list('first_name', 'last_name', 'username')
+        return [self.serialise_account(user) for user in sorted(accounts, key=lambda wo: [fuzz.ratio(self.query, param) for param in wo], reverse=True)]
 
     @staticmethod
     def serialise_hobby(hobby: Hobby):
@@ -154,14 +152,14 @@ class SearchEngine:
         }
 
     def search_hobby(self):
-        hobbies = Hobby.objects.filter(self.search_hobby_query())
-        return hobbies
+        hobbies = Hobby.objects.filter(self.search_hobby_query()).values_list('name', flat=True)
+        return [self.serialise_hobby(hobby) for hobby in sorted(hobbies, key=lambda hobby: fuzz.ratio(self.query, hobby), reverse=True)]
 
     def search(self):
         return {
-            "tags": self.search_tags(),
+            "tags": self.search_tags()[:6],
             "users": self.search_users(),
-            "hobbies": self.search_hobby()
+            "hobbies": self.search_hobby()[:6]
         }
 
     def hastag_follow_up(self):

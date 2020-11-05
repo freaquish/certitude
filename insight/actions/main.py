@@ -3,6 +3,7 @@ from celery import shared_task
 from insight.workers.analyzer import Analyzer
 from django.db.models import QuerySet
 from insight.utils import get_ist
+from insight.workers.analyzer import Analyzer
 from math import exp
 
 weights = {
@@ -24,15 +25,25 @@ class PostActions:
                 post_id=self.post.post_id, account=self.user, created_at=get_ist(), comment=value)
             return self.commit_action('comment')
 
+    """
+    Serious Improvement required, suppose user base grown to 10 million and 5 million post
+    recorded 1000 actions each, then 1000 * 5 million
+    total stores = 5000000000 stores
+    select query will be extremely slow, we need to index the account_id and post_id
+    needed to introduce some serious arch.
+    I think in the coming age all of the backend should be re-written
+    
+    The write should be in go
+    """
     def commit_action(self, action):
-        if action == 'viewed' and self.post.account.account_id == self.user.account_id:
+        if action == 'viewed':
             return False
         action_store, created = ActionStore.objects.get_or_create(
             account_id=self.user.account_id, post_id=self.post.post_id
         )
         if action == 'view' and action_store.viewed:
             return False
-        elif action == 'view' and not action_store.viewed:
+        elif action == 'view':
             action_store.viewed = True
             action_store.viewed_at = get_ist()
             self.increment('view')
@@ -107,15 +118,23 @@ class PostActions:
             self.post.action_count[key] = 0
         self.post.save()
 
-    def micro_action(self, action, val=''):
+    def micro_action(self, action, val='', for_test: bool = False):
         weight = 0.0
-        if self.user.account_id == self.post.account.account_id and action == 'save':
+        if self.user.account_id == self.post.account.account_id:
             return None
         elif action == 'comment':
             commit = self.commented(val)
         else:
             commit = self.commit_action(action)
-        self.score_post.delay(self.post.post_id, self.user.account_id)
+            if not commit:
+                return None
+        analyzer: Analyzer = Analyzer(self.user)
+        act = {}
+        if 'un_love' == action:
+            act['love'] = -1
+        else:
+            act[action] = 1
+        analyzer.analyze_post_action(self.post, for_test=for_test, **act)
 
 
 

@@ -52,19 +52,5 @@ def post_id_generator():
     return f'{token_urlsafe(16)}'
 
 
-
-
-class switch:
-
-    def __init__(self, var, *conds):
-        self.var = var
-        self.conds = conds[0] if conds else {}
-
-    def perform(self):
-        for key, value in self.conds.items():
-            if key == self.var:
-                value()
-
-    def bind(self, art, comment=''):
-        self.conds.update(art)
-        return self
+def next_sunday(today: datetime):
+    return today + timedelta(days=6 - today.weekday())

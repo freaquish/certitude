@@ -11,6 +11,7 @@ class ModelWrapper:
         # Create list of scores fuzz.ratio
         self.function_score = [value(self.execute_value(key)) for key, value in self.kwargs.items()]
 
+    # Return value from each model working similar to F('va')
     def execute_value(self, key: str):
         vals = None
         if '__' in key:

@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from insight.actions.feed import Feed
-from insight.actions.post_actions import authenticated_mirco_actions, general_micro_actions, authenticated_association
+from insight.actions.post_actions import authenticated_association
 from rest_framework.authtoken.models import Token
 from insight.actions.main import PostActions
 from insight.workers.post_creation_manager import PostCreationManager
@@ -146,7 +146,7 @@ class CreatePost(APIView):
         if account:
             if len(data['assets']) == 0:
                 return Response({"msg": "successful"}, status=status.HTTP_201_CREATED)
-            post_creation_manager: PostCreationManager = PostCreationManager(account)
+            post_creation_manager: PostCreationManager = PostCreationManager(account, **data)
             post_creation_manager.create_post()
             return Response({"msg": "successful"}, status=status.HTTP_201_CREATED)
         return Response({}, status=status.HTTP_403_FORBIDDEN)

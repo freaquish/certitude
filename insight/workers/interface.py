@@ -90,6 +90,7 @@ class AnalyzerInterface:
     the main motivation of hobby report
     is to maintain hobby score of each user to predict interest.
     Weightage are distributed emotionally
+    Hobby report of user
     """
 
     def manage_hobby_report(self, hobby: str, **reports) -> models.HobbyReport:
@@ -107,6 +108,7 @@ class AnalyzerInterface:
     """
     manage Scoreboard get or create scoreboard for user valid for a week
     calculates scores using score_posts and updates it all
+    Scoreboard of post creator
     """
 
     def manage_scoreboard(self, post: models.Post, created: bool = False) -> models.Scoreboard:
@@ -148,7 +150,7 @@ class AnalyzerInterface:
     """
 
     @staticmethod
-    def background_task(user_id: str, *count) -> None:
+    def background_task(user_id: str, post_id: str, *count) -> None:
         pass
 
     """
@@ -160,7 +162,8 @@ class AnalyzerInterface:
 
     """
     After post creations call hobby_report with create and weight and then call 
-    manage_score_post call background_task
+    manage_score_post call background_task 
+    Post creator
     """
 
     def analyzer_create_post(self, post: models.Post):
@@ -170,8 +173,12 @@ class AnalyzerInterface:
     Called after post action fire, call manage_score_post, manage_hobby_report
     actions will contain action such as view/love/share and 1 or -1
     then background_task
+    On Post Action will increase report of acting user, user != post.user
+    
+    for_test signifies that function is called inside a TestCase and should not call
+    celery as celery couldn't access the db used by TestSuits
     """
-    def analyze_post_action(self, post: models.Post, **actions):
+    def analyze_post_action(self, post: models.Post, for_test: bool = False, **actions):
         pass
 
 

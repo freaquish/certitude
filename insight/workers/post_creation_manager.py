@@ -30,7 +30,7 @@ class PostCreationManager(PostCreationInterface):
         data: dict = self.render_data()
         if data is None:
             return data
-        self.post: Post = Post.create_new(**data)
+        self.post: Post = Post.objects.create(**data)
         self.after_creation()
 
     def create_tag(self):
@@ -46,7 +46,7 @@ class PostCreationManager(PostCreationInterface):
         if tag_query:
             tags_in_db: QuerySet = Tags.objects.filter(tag_query).values_list('tag', flat=True)
             tags_not_in_db = set(all_tags).difference(set(tags_in_db))
-            Tags.objects.bulk_create(
+            tags = Tags.objects.bulk_create(
                 [Tags(tag=tag, created_at=get_ist(), first_used=self.post.post_id) for tag in tags_not_in_db]
             )
 
@@ -55,11 +55,7 @@ class PostCreationManager(PostCreationInterface):
             return None
         self.analyzer = Analyzer(self.post.account)
         self.create_tag()
-        self.analyzer.manage_score_post(self.post, is_new=True)
-        # data = self.attach_to_competition()
-        # self.attach_to_community(data)
-        self.analyzer.background_task.delay(self.post.account.account_id, hobby=self.post.hobby.code_name,
-                                            report={'posts': 1})
+        self.analyzer.analyzer_create_post(self.post)
 
 
 

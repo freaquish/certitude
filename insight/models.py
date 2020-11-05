@@ -137,15 +137,6 @@ class Post(models.Model):
     score = models.DecimalField(max_digits=7, decimal_places=3, default=0.0)
     is_global = models.BooleanField(default=True)
 
-    def create_new(self, **kwargs):
-        data = kwargs
-        fields = self.__dict__.keys()
-        for key, value in data.items():
-            if key not in fields:
-                del data[key]
-        self.objects.create(**data)
-        return self
-
 
 class ActionStore(models.Model):
     account_id = models.CharField(max_length=50, db_index=True, default='')
@@ -233,7 +224,7 @@ class ScorePost(models.Model):
     freshness_score = models.DecimalField(max_digits=9, decimal_places=7, default=0.0)
     net_score = models.DecimalField(max_digits=7, decimal_places=3, default=0.0)
     rank = models.IntegerField(default=0)
-    post = models.ForeignKey(Post, on_delete=models.CASCADE, default='')
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, default='', db_index=True)
     created_at = models.DateTimeField(default=get_ist())
     last_modified = models.DateTimeField(default=get_ist())
 
@@ -354,7 +345,7 @@ class JsonData(mongo_models.Model):
 
 class DataLog(mongo_models.Model):
     log_type = mongo_models.CharField(max_length=10)
-    user_id = mongo_models.TextField()
+    user_id = mongo_models.TextField(default='')
     created_at = mongo_models.DateField()
     searched_text = mongo_models.ArrayField(model_container=TextData)
     coordinates = mongo_models.ArrayField(model_container=CoordinatesData)
@@ -369,7 +360,7 @@ class DataLog(mongo_models.Model):
 
 
 class RankReport(mongo_models.Model):
-    user_id = models.CharField(max_length=50)
+    user_id = models.CharField(max_length=50, default='')
     date = mongo_models.DateField()
     rank = mongo_models.IntegerField()
     score = mongo_models.DecimalField(max_digits=8, decimal_places=4)

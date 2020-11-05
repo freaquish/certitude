@@ -19,8 +19,17 @@ class SearchView(APIView):
         query = request.GET['q']
         query = (query.replace('h__', '#')).replace('a__', '@')
         engine: SearchEngine = SearchEngine(user=user, query=query)
-        results = engine.search()
+        if 'type' in request.GET:
+            if request.GET['type'] == 'hobby':
+                results = engine.search_hobby()
+            elif request.GET['type'] == 'user':
+                results = engine.search_users()
+            elif request.GET['type'] == 'tag':
+                results = engine.search_tags()
+        else:
+            results = engine.search()
         return Response(results, status=status.HTTP_200_OK)
+
 
 class SearchFollowUp(APIView):
     authentication_classes = [TokenAuthentication]

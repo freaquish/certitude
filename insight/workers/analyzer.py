@@ -8,6 +8,7 @@ import math
 from insight.models import *
 from insight.workers.interface import AnalyzerInterface
 from celery import shared_task
+from insight.utils import next_sunday
 from django.db.models import Q, QuerySet
 from math import log
 
@@ -34,8 +35,8 @@ class Analyzer(AnalyzerInterface):
             audits['view'] += 1
             audits['comment'] += 1 if action_store.commented else 0
             audits['share'] += 1 if action_store.shared else 0
-            audits['up_vote'] += 1 if action_store.up_vote else 0
-            audits['down_vote'] += 1 if action_store.down_vote else 0
+            audits['up_vote'] += 1 if action_store.up_voted else 0
+            audits['down_vote'] += 1 if action_store.down_voted else 0
 
         return audits
 
@@ -55,11 +56,12 @@ class Analyzer(AnalyzerInterface):
                        (self.WEIGHT_SHARE * counts['share'])
         if for_comp:
             score += (self.WEIGHT_UP_VOTE * counts['up_vote']) + (self.WEIGHT_DOWN_VOTE * counts['down_vote'])
-        return 1 + score
 
-    def manage_score_post(self, post: Post, is_new: bool = False, after: bool = False):
+        return score
+
+    def manage_score_post(self, post: Post, is_new: bool = False, after: datetime = None):
         if is_new:
-            score_post = ScorePost.objects.create(post=post, created=get_ist(), last_modified=get_ist())
+            score_post = ScorePost.objects.create(post=post, created_at=get_ist(), last_modified=get_ist())
         else:
             score_post, created = ScorePost.objects.get_or_create(post=post)
         score_post.freshness_score = self.calculate_freshness_score(post)
@@ -72,17 +74,17 @@ class Analyzer(AnalyzerInterface):
         return score_post
 
     def manage_scoreboard(self, post: Post, created: bool = False):
-        scoreboards: QuerySet = Scoreboard.objects.filter(Q(account=self.user) & Q(expores_on__gte=get_ist()))
+        scoreboards: QuerySet = Scoreboard.objects.filter(Q(account=post.account) & Q(expires_on__gte=get_ist()))
         if not scoreboards:
-            scoreboard: Scoreboard = Scoreboard.objects.create(account=self.user, creates_at=get_ist(),
-                                                               expires_on=get_ist() + timedelta(days=7))
+            scoreboard: Scoreboard = Scoreboard.objects.create(account=post.account, created_at=get_ist(),
+                                                               expires_on=next_sunday(get_ist()))
         else:
             scoreboard: Scoreboard = scoreboards.first()
-        hobby_reports: QuerySet = HobbyReport.objects.filter(account=self.user)
+        hobby_reports: QuerySet = HobbyReport.objects.filter(account=post.account)
         scores = {}
         for report in hobby_reports:
             scores[report.hobby.code_name] = self.score_post({'love': report.loves, 'view': report.views,
-                                                              'share': report.share})
+                                                              'share': report.shares})
         if created:
             scores = {k: v+self.WEIGHT_CREATE for k, v in scores.items()}
         self.user.hobby_map = scores
@@ -106,18 +108,27 @@ class Analyzer(AnalyzerInterface):
 
     @staticmethod
     @shared_task
-    def background_task(user_id: str, *count, **kwargs) -> None:
-        user: Account = Account.objects.get(pk=user_id)
+    def background_task(user_id: str, post_id: str, created: bool = False, *count, **kwargs) -> None:
+        users: QuerySet = Account.objects.filter(account_id=user_id)
+        posts: QuerySet = Post.objects.filter(post_id=post_id)
+        if len(users) == 0 or len(posts) == 0 :
+            return None
+        user = users.first()
+        post = posts.first()
         analyzer = Analyzer(user)
         if 'hobby' in kwargs and 'report' in kwargs:
             analyzer.manage_hobby_report(kwargs['hobby'], **kwargs['report'])
-        analyzer.user_activity(analyzer.manage_scoreboard())
+        analyzer.user_activity(analyzer.manage_scoreboard(post))
         return None
 
     def analyzer_create_post(self, post: Post):
         self.manage_hobby_report(post.hobby.code_name, posts=1)
-        self.manage_score_post(post)
-        self.background_task.delay(self.user.account_id)
+        self.manage_score_post(post, is_new=True)
+        self.background_task.delay(self.user.account_id, post.post_id, created=True),
 
-    def analyze_post_action(self, post: Post, **actions):
-        pass
+    def analyze_post_action(self, post: Post, for_testing: bool = False, **actions):
+        self.manage_score_post(post)
+        if for_testing:
+            self.user_activity(self.manage_scoreboard(post))
+            return None
+        self.background_task.delay(self.user.account_id, post.post_id)
