@@ -46,7 +46,7 @@ class Analyzer(AnalyzerInterface):
         hobby: Hobby = hobbies.first()
         hobby_report, created = HobbyReport.objects.get_or_create(account=self.user, hobby=hobby)
         for key, value in reports.items():
-            hobby_report.__dict__[f'{key}s'] += value
+            hobby_report.__dict__[key] += value
         hobby_report.save()
         return hobby_report
 
@@ -57,8 +57,11 @@ class Analyzer(AnalyzerInterface):
             score += (self.WEIGHT_UP_VOTE * counts['up_vote']) + (self.WEIGHT_DOWN_VOTE * counts['down_vote'])
         return 1 + score
 
-    def manage_score_post(self, post: Post, after=None):
-        score_post, created = ScorePost.objects.get_or_create(post=post)
+    def manage_score_post(self, post: Post, is_new: bool = False, after: bool = False):
+        if is_new:
+            score_post = ScorePost.objects.create(post=post, created=get_ist(), last_modified=get_ist())
+        else:
+            score_post, created = ScorePost.objects.get_or_create(post=post)
         score_post.freshness_score = self.calculate_freshness_score(post)
         if self.counts is None:
             self.counts = self.audit_post_counts(post, after)
@@ -103,19 +106,18 @@ class Analyzer(AnalyzerInterface):
 
     @staticmethod
     @shared_task
-    def background_task(user_id: str, *count) -> None:
+    def background_task(user_id: str, *count, **kwargs) -> None:
         user: Account = Account.objects.get(pk=user_id)
         analyzer = Analyzer(user)
+        if 'hobby' in kwargs and 'report' in kwargs:
+            analyzer.manage_hobby_report(kwargs['hobby'], **kwargs['report'])
         analyzer.user_activity(analyzer.manage_scoreboard())
         return None
 
     def analyzer_create_post(self, post: Post):
-        self.manage_hobby_report(post.hobby.code_name, create=1)
+        self.manage_hobby_report(post.hobby.code_name, posts=1)
         self.manage_score_post(post)
         self.background_task.delay(self.user.account_id)
 
     def analyze_post_action(self, post: Post, **actions):
-        self.manage_score_post(post)
-        self.manage_hobby_report(post, **actions)
-        self.background_task.delay(self.user.account_id)
-
+        pass

@@ -11,26 +11,11 @@ from rest_framework.views import APIView
 
 from insight.actions.feed import Feed
 from insight.actions.post_actions import authenticated_mirco_actions, general_micro_actions, authenticated_association
+from rest_framework.authtoken.models import Token
 from insight.actions.main import PostActions
-from insight.workers import analyzer, managers
+from insight.workers.post_creation_manager import PostCreationManager
 from insight.paginator import FeedPaginator
 from insight.serializers import *
-
-"""
-  Identify using token provided in header and returns Account,valid_user
-"""
-
-
-def identify_token(request):
-    if 'HTTP_AUTHORIZATION' in request.META:
-        token_key = request.META.get('HTTP_AUTHORIZATION')
-        token_key = "".join(token_key.split('Token ')
-                            ) if 'Token' in token_key else token_key
-        tokens = Token.objects.filter(key=token_key)
-        if not tokens:
-            return None, False
-        token = tokens.first()
-        return token.user, True
 
 
 # Create your views here..
@@ -161,29 +146,8 @@ class CreatePost(APIView):
         if account:
             if len(data['assets']) == 0:
                 return Response({"msg": "successful"}, status=status.HTTP_201_CREATED)
-            is_coord_present = False
-            if 'coords' in data:
-                is_coord_present = True
-                account.objects.insert_coords(json_to_coord(data['coords']))
-                account.save()
-            hobby = Hobby.objects.get(code_name=data['hobby'])
-            post_id = post_id_generator()
-            if 'coords' in data:
-                data['coords'] = json_to_coord(data['coords'])
-            data['created_at'] = get_ist()
-            data['action_count'] = {'love': 0, 'view': 0,
-                                    'share': 0, 'save': 0, 'comment': 0}
-            data['rank'] = 0
-            data['score'] = 0.0
-            data['account'] = account
-            data['hobby'] = hobby
-            data['post_id'] = post_id
-            data['is_global'] = False if 'is_global' in data and data['is_global'] != 1 else True
-            post: Post = Post.create_new(**data)
-            analyze_post = analyzer.Analyzer(account)
-            analyze_post.analyze_create_post(post)
-            post_creation_signals: managers.PostCreationManager = managers.PostCreationManager(post, **data)
-            post_creation_signals.catch()
+            post_creation_manager: PostCreationManager = PostCreationManager(account)
+            post_creation_manager.create_post()
             return Response({"msg": "successful"}, status=status.HTTP_201_CREATED)
         return Response({}, status=status.HTTP_403_FORBIDDEN)
 
@@ -269,20 +233,12 @@ class FetchComment(APIView):
 class ThirdPartyProfileView(APIView):
     permission_classes = [AllowAny]
 
-    def verify_token(self):
-        if 'HTTP_AUTHORIZATION' in self.request.META:
-            token_key = self.request.META.get('HTTP_AUTHORIZATION')
-            if 'Token' in token_key:
-                token_key = "".join(token_key.split('Token '))
-            token = Token.objects.get(key=token_key)
-            self.user: Account = token.user
-            self.valid_user = True
-        else:
-            self.valid_user = False
+    user = None
+    valid_user = False
 
     def get(self, request, username: str):
-        self.request = request
-        self.verify_token()
+        self.user = request.user
+        self.valid_user = True if self.user else False
         accounts: QuerySet = Account.objects.filter(username=username)
         if accounts:
             account: Account = accounts.first()
@@ -319,7 +275,6 @@ class ThirdPartyProfileView(APIView):
 class ProfileView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
-
 
     def get(self, request):
         user = request.user
@@ -370,7 +325,7 @@ class PaginatedFeedView(GenericAPIView):
     pagination_class = FeedPaginator
 
     def get(self, request):
-        user, valid = identify_token(request)
+        user, valid = request.user, True
         if valid:
             feed = Feed(user)
             self.queryset, actions = feed.extract_feed_known()

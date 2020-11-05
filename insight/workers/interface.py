@@ -1,5 +1,6 @@
 from insight import models
-from django.db.models import QuerySet, Q
+from typing import List, Tuple
+from django.db.models import QuerySet
 
 
 class PostCreationInterface:
@@ -60,7 +61,7 @@ class PostCreationInterface:
     by creating community post
     """
 
-    def attach_to_community(self):
+    def attach_to_community(self, *user_data):
         pass
 
     """
@@ -68,7 +69,7 @@ class PostCreationInterface:
     such as uniqueness, maximum_post_per_user
     """
 
-    def attach_to_competition(self):
+    def attach_to_competition(self) -> Tuple[List[str], QuerySet]:
         pass
 
 
@@ -100,7 +101,7 @@ class AnalyzerInterface:
     of the post just actioned by user
     """
 
-    def manage_score_post(self, post: models.Post) -> models.ScorePost:
+    def manage_score_post(self, post: models.Post, is_new: bool = False, after: bool = False) -> models.ScorePost:
         pass
 
     """
