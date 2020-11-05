@@ -1,9 +1,9 @@
 from insight.models import Post, ActionStore, Account, ScorePost, UserPostComment
 from celery import shared_task
-from insight.manager.analyzer import Analyzer
+from insight.workers.analyzer import Analyzer
 from django.db.models import QuerySet
 from insight.utils import get_ist
-from math import log
+from math import exp
 
 weights = {
     'love': 0.50,
@@ -89,9 +89,9 @@ class PostActions:
         score_post.last_modified = get_ist()
         delta_date = get_ist() - post.created_at
         score_post.score = score
-        freshness_score = log(delta_date.days) if delta_date.days > 0 else log(0.01)
+        freshness_score = exp(-delta_date.days)
         score_post.freshness_score = freshness_score
-        score_post.net_score = score - freshness_score
+        score_post.net_score = score + freshness_score
         score_post.save()
         analyzer.analyze_scoreboard(post)
         analyzer.analyze(post, weight)

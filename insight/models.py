@@ -5,7 +5,7 @@ from django.contrib.gis.db import models as gis_models
 # from django.contrib.gis.geos.point import Point
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
-from rest_framework.authtoken.models import Token
+from djongo import models as mongo_models
 
 from .utils import *
 
@@ -43,6 +43,7 @@ class Account(AbstractBaseUser, PermissionsMixin):
     username = models.CharField(
         max_length=30, default='', unique=True, db_index=True)
     first_name = models.CharField(max_length=30, default='')
+    country_code = models.CharField(max_length=4, default='+91')
     last_name = models.CharField(max_length=30, default='')
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
@@ -100,6 +101,20 @@ class Hobby(models.Model):
     editors = ArrayField(models.CharField(max_length=30), default=list)
     limits = JSONField(default=dict)
     weight = models.DecimalField(max_digits=5, decimal_places=3, default=0.0)
+
+
+class HobbyReport(models.Model):
+    account = models.ForeignKey(Account, related_name='hobby_report_account', on_delete=models.CASCADE)
+    hobby = models.ForeignKey(Hobby, related_name='hobby_report_hobby', on_delete=models.CASCADE)
+    posts = models.IntegerField(default=0)
+    views = models.IntegerField(default=0)
+    loves = models.IntegerField(default=0)
+    shares = models.IntegerField(default=0)
+    comments = models.IntegerField(default=0)
+    communities_involved = models.IntegerField(default=0)
+    competition_hosted = models.IntegerField(default=0)
+    competition_participated = models.IntegerField(default=0)
+    competition_hosted = models.IntegerField(default=0)
 
 
 class Post(models.Model):
@@ -308,3 +323,71 @@ class CompetitionPost(models.Model):
     competition = models.ForeignKey(Competition, on_delete=models.CASCADE, default='',
                                     related_name='competition_post_competition')
     created_at = models.DateTimeField(default=get_ist())
+
+
+"""
+Mongo Database Models 
+"""
+
+
+class TextData(mongo_models.Model):
+    text = mongo_models.TextField()
+
+    class Meta:
+        abstract = True
+
+
+class CoordinatesData(mongo_models.Model):
+    x = mongo_models.DecimalField(default=0.0, max_digits=8, decimal_places=6)
+    y = mongo_models.DecimalField(default=0.0, max_digits=8, decimal_places=6)
+
+    class Meta:
+        abstract = True
+
+
+class JsonData(mongo_models.Model):
+    data = mongo_models.JSONField()
+
+    class Meta:
+        abstract = True
+
+
+class DataLog(mongo_models.Model):
+    log_type = mongo_models.CharField(max_length=10)
+    user_id = mongo_models.TextField()
+    created_at = mongo_models.DateField()
+    searched_text = mongo_models.ArrayField(model_container=TextData)
+    coordinates = mongo_models.ArrayField(model_container=CoordinatesData)
+    headers = mongo_models.ArrayField(model_container=JsonData)
+    logs = mongo_models.ArrayField(model_container=TextData)
+    process = mongo_models.ArrayField(model_container=TextData)
+
+    objects = mongo_models.DjongoManager()
+
+    class Meta:
+        required_db_vendor = 'insight_story'
+
+
+class RankReport(mongo_models.Model):
+    user_id = models.CharField(max_length=50)
+    date = mongo_models.DateField()
+    rank = mongo_models.IntegerField()
+    score = mongo_models.DecimalField(max_digits=8, decimal_places=4)
+    total_pax = mongo_models.IntegerField()
+
+    objects = mongo_models.DjongoManager()
+
+    class Meta:
+        required_db_vendor = 'insight_story'
+
+
+class HobbyNearest(mongo_models.Model):
+    users_primary_hobby = mongo_models.TextField()
+    chosen_hobby = mongo_models.TextField()
+    source = mongo_models.TextField()
+    is_recommended = mongo_models.BooleanField(default=False)
+
+    objects = mongo_models.DjongoManager()
+
+    class Meta:
+        required_db_vendor = 'insight_story'

@@ -4,12 +4,14 @@ DATABASE_POSTGRES_ENGINE: str = 'django.contrib.gis.db.backends.postgis'
 DATABASE_MONGO_ENGINE: str = 'djongo'
 
 DATABASE_POSTGRES_NAME: str = 'insightdb'
-DATABASE_MONGO_NAME: str = 'insightdb'
+DATABASE_MONGO_NAME: str = 'insight_story'
 
 DATABASE_POSTGRES_HOST: str = 'localhost'
 DATABASE_POSTGRES_USER: str = 'postgres'
 DATABASE_POSTGRES_PASSWORD: str = 'piyush@103'
 DATABASE_POSTGRES_PORT: str = '5432'
+
+DATABASE_MONGO_PORT: str = '27017'
 
 # CASSANDRA DB FUTURE USE
 DATABASE_CASSANDRA_ENGINE: str = 'django_cassandra_engine'
@@ -17,7 +19,7 @@ DATABASE_CASSANDRA_NAME: str = ''
 DATABASE_CASSANDRA_HOST: str = 'localhost'
 
 
-DATBASE = {
+DATABASE = {
     'default': {
         'ENGINE': DATABASE_POSTGRES_ENGINE,
         'NAME': DATABASE_POSTGRES_NAME,
@@ -25,6 +27,11 @@ DATBASE = {
         'PORT': DATABASE_POSTGRES_PORT,
         'USER': DATABASE_POSTGRES_USER,
         'PASSWORD': DATABASE_POSTGRES_PASSWORD
+    },
+    'insight_story': {
+        'ENGINE': DATABASE_MONGO_ENGINE,
+        'NAME': DATABASE_MONGO_NAME,
+        'PORT': DATABASE_MONGO_PORT
     }
 }
 

@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 from insight.actions.feed import Feed
 from insight.actions.post_actions import authenticated_mirco_actions, general_micro_actions, authenticated_association
 from insight.actions.main import PostActions
-from insight.manager import analyzer, managers
+from insight.workers import analyzer, managers
 from insight.paginator import FeedPaginator
 from insight.serializers import *
 
@@ -182,7 +182,6 @@ class CreatePost(APIView):
             post: Post = Post.create_new(**data)
             analyze_post = analyzer.Analyzer(account)
             analyze_post.analyze_create_post(post)
-
             post_creation_signals: managers.PostCreationManager = managers.PostCreationManager(post, **data)
             post_creation_signals.catch()
             return Response({"msg": "successful"}, status=status.HTTP_201_CREATED)

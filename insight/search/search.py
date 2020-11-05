@@ -1,10 +1,13 @@
 from insight.models import *
-from django.db.models import Q, QuerySet
+from insight.tools.wrapper import WrapperSet
+from django.db.models import Q, QuerySet, F
 from insight.serializers import *
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
+from insight.tools.wrapper import WrapperSet, ModelWrapper
+from fuzzywuzzy import fuzz
 
 """
- search atags : Post containing atags, Account, community, competiton related with query
+ search atags : Post containing atags, Account, community, competition related with query
  search hastags
  search first_name, last_name
  search hobby
@@ -13,7 +16,7 @@ from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 """
 
 EXCLUSION = {
-  'users':[
+  'users': [
       'account_id',
       '',
   ]
@@ -28,7 +31,8 @@ class SearchEngine:
             self.user: Account = kwargs['user']
         else:
             self.user = None
-        if 'f_data' in kwargs:
+        if 'f_data' in kwargs: 
+            # For tag follow_up
             self.f_data: str = kwargs['f_data']
         else:
             self.f_data = None
@@ -79,11 +83,10 @@ class SearchEngine:
         }
 
     def search_tags(self):
-        vector = SearchVector('tag')
         query = SearchQuery(self.query)
         self.hobby = Hobby.objects.all()
-        tags = Tags.objects.filter(self.search_tag_query()).annotate(rank=SearchRank(vector, query)).order_by('-rank')
-        return [self.serialise_tag(tag) for tag in tags]
+        tags = Tags.objects.filter(self.search_tag_query())
+        return tags
 
     def search_account_query(self):
         if ' ' in self.query:
@@ -140,31 +143,19 @@ class SearchEngine:
         return Q(name__icontains=self.query)
 
     def search_users(self):
-        self.hobby = Hobby.objects.all()
-        vector = SearchVector('username') + SearchVector('first_name') + SearchVector('last_name')
-        query = SearchQuery(self.query.replace('+', ' '))
-        accounts = Account.objects.filter(self.search_account_query()).exclude(self.exclusion_user_query()).annotate(
-            vector=vector,
-            rank=SearchRank(vector, query)).order_by('-rank')
-        return [self.serialise_account(account) for account in accounts]
+        accounts = Account.objects.filter(self.search_account_query()).exclude(self.exclusion_user_query())
+        return accounts
 
     @staticmethod
     def serialise_hobby(hobby: Hobby):
         return {
             "code_name": hobby.code_name,
             "name": hobby.name
-
-
-
-
         }
 
     def search_hobby(self):
-        vector = SearchVector('name')
-        query = SearchQuery(self.query.replace('+', ' '))
-        hobbies = Hobby.objects.filter(self.search_hobby_query()).annotate(rank=SearchRank(vector, query)).order_by(
-            '-rank')
-        return [self.serialise_hobby(hobby) for hobby in hobbies]
+        hobbies = Hobby.objects.filter(self.search_hobby_query())
+        return hobbies
 
     def search(self):
         return {
