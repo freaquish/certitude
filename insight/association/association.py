@@ -14,22 +14,6 @@ class AssociationEngine:
     def __init__(self, user):
         self.user = user
 
-    def make_friend(self, target: Account):
-        target.friend.append(self.user.account_id)
-        self.user.friend.append(target.account_id)
-        self.user.friend_count += 1
-        target.friend_count += 1
-        target.save()
-        self.user.save()
-
-    def remove_friend(self, target: Account):
-        target.friend.remove(self.user.account_id)
-        self.user.friend.remove(target.account_id)
-        self.user.friend_count -= 1
-        target.friend_count -= 1
-        target.save()
-        self.user.save()
-
     def follow_target(self, target: Account):
         if target.account_id in self.user.following:
             return None
@@ -56,9 +40,6 @@ class AssociationEngine:
                 notification_manager = NotificationManager()
                 notification_manager.create_friend_request(
                     to=target, from_=self.user)
-
-    def accept_friend_request(self, target: Account):
-        self.make_friend(target)
 
     def follow_association_manager(self, target: Account):
         if target.account_id == self.user.account_id:

@@ -4,7 +4,7 @@ import json
 from datetime import timedelta
 from django.db.models import Q, QuerySet
 from insight.workers.analyzer import Analyzer
-from insight.leaderboard.main import LeaderBoardEngine
+# from insight.leaderboard.main import LeaderBoardEngine
 from insight.utils import get_ist
 
 """

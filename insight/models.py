@@ -234,6 +234,11 @@ class Scoreboard(models.Model):
     created_at = models.DateField(default=get_ist_date())
     expires_on = models.DateField(default=get_ist_date())
     hobby_scores = JSONField(default=dict)
+    views = models.IntegerField(default=0)
+    loves = models.IntegerField(default=0)
+    shares = models.IntegerField(default=0)
+    up_votes = models.IntegerField(default=0)
+    down_votes = models.IntegerField(default=0)
     retention = models.DecimalField(max_digits=9, decimal_places=5, default=0.0)
     net_score = models.DecimalField(
         default=0.0, max_digits=8, decimal_places=4)

@@ -13,10 +13,10 @@ from fuzzywuzzy import fuzz
 """
 
 EXCLUSION = {
-  'users': [
-      'account_id',
-      '',
-  ]
+    'users': [
+        'account_id',
+        '',
+    ]
 }
 
 
@@ -28,78 +28,32 @@ class SearchEngine:
             self.user: Account = kwargs['user']
         else:
             self.user = None
-        if 'f_data' in kwargs: 
+        if 'f_data' in kwargs:
             # For tag follow_up
             self.f_data: str = kwargs['f_data']
         else:
             self.f_data = None
-        self.hobby = QuerySet()
+        self.hobby = QuerySet
 
-    @staticmethod
-    def tag_avatar(tag: str):
-        first = tag[1].upper()
-        last = tag[-1].upper()
-        for index in range(1, len(tag)):
-            if tag[index].isupper() and tag[index] != first:
-                last = tag[index].upper()
-                break
-        return first + last
-
-    def serialise_tag(self, tag: Tags):
-        return {
-            "tag": tag.tag,
-            "avatar": self.tag_avatar(tag.tag)
-        }
-
-    def user_in_association(self, account: Account):
-        # check if user in friend or followed by the user searching
-        if self.user:
-            following = 0
-            friend = 0
-            if self.user.following and account.account_id in self.user.following:
-                following = 1
-            if self.user.friend and account.account_id in self.user.friend:
-                friend = 1
-            return following, friend
-        return 0, 0
-
-    def serialise_account(self, account: Account):
-        hobbies: QuerySet = self.hobby.filter(code_name=account.primary_hobby)
-        hobby = None
-        if hobbies:
-            hobby: Hobby = hobbies.first()
-        associated = self.user_in_association(account)
-        return {
-            "account_id": account.account_id,
-            "name": f'{account.first_name} {account.last_name}',
-            "username": account.username,
-            "hobby": hobby.name if hobby else '',
-            "following": associated[0],
-            "friend": associated[1],
-            "avatar": account.avatar
-        }
-
-    def search_tags(self):
-        self.hobby = Hobby.objects.all()
-        tags = Tags.objects.filter(self.search_tag_query()).values_list('tag', flat=True)
-        return [self.serialise_tag(tag) for tag in sorted(tags, key=lambda tag_str: fuzz.ratio(self.query, tag_str),
-                                                          reverse=True)]
-
-    def search_account_query(self):
+    def search_account_query(self, contains= False):
         if ' ' in self.query:
             query = None
             for q in self.query.split(' '):
+                ques = Q(Q(username__istartswith=q) | Q(first_name__istartswith=q) |
+                                      Q(last_name__istartswith=q)) if not contains else Q(Q(username__icontains=q) | Q(first_name__icontains=q) |
+                                      Q(last_name__icontains=q))
                 if '#' in q:
                     continue
                 elif query:
                     q = q.replace('@', '')
-                    query = query | Q(Q(username__icontains=q) | Q(first_name__icontains=q) | Q(last_name__icontains=q))
+                    query = query | ques
                 else:
                     q = q.replace('@', '')
-                    query = Q(Q(username__icontains=q) | Q(first_name__icontains=q) | Q(last_name__icontains=q))
+                    query = ques
             return query
-       
-        return Q(Q(username__icontains=self.query.replace('@', '')) | Q(first_name__icontains=self.query.replace('@', '')) | Q(
+
+        return Q(Q(username__icontains=self.query.replace('@', '')) | Q(
+            first_name__icontains=self.query.replace('@', '')) | Q(
             last_name__icontains=self.query.replace('@', '')))
 
     def exclusion_user_query(self):
@@ -109,7 +63,7 @@ class SearchEngine:
                 exclusion_query = Q(username=exclusive)
             else:
                 exclusion_query = exclusion_query | Q(username=exclusive)
-        return exclusion_query 
+        return exclusion_query
 
     def search_tag_query(self):
         if ' ' in self.query:
@@ -133,27 +87,91 @@ class SearchEngine:
                 if '#' in q or '@' in q:
                     continue
                 elif query:
-                    query = query | Q(name__icontains=q)
+                    query = query | Q(name__istartswith=q)
                 else:
-                    query = Q(name__icontains=q)
+                    query = Q(name__istartswith=q)
             return query
-        return Q(name__icontains=self.query)
+        return Q(name__istartswith=self.query)
 
-    def search_users(self):
-        accounts = Account.objects.filter(self.search_account_query()).exclude(self.exclusion_user_query())\
-            .values_list('first_name', 'last_name', 'username')
-        return [self.serialise_account(user) for user in sorted(accounts, key=lambda wo: [fuzz.ratio(self.query, param) for param in wo], reverse=True)]
+    @staticmethod
+    def tag_avatar(tag: str):
+        first = tag[1].upper()
+        last = tag[-1].upper()
+        for index in range(1, len(tag)):
+            if tag[index].isupper() and tag[index] != first:
+                last = tag[index].upper()
+                break
+        return first + last
+
+    def user_in_association(self, account: Account):
+        # check if user in friend or followed by the user searching
+        if self.user:
+            following = 0
+            friend = 0
+            if self.user.following and account.account_id in self.user.following:
+                following = 1
+            if self.user.friend and account.account_id in self.user.friend:
+                friend = 1
+            return following, friend
+        return 0, 0
+
+    def serialise_tag(self, tag: Tags):
+        return {
+            "tag": tag.tag,
+            "avatar": self.tag_avatar(tag.tag),
+            "type": "tag"
+        }
+
+    def serialise_account(self, account: Account):
+        hobbies: QuerySet = self.hobby.filter(code_name=account.primary_hobby)
+        hobby = None
+        if hobbies:
+            hobby: Hobby = hobbies.first()
+        associated = self.user_in_association(account)
+        return {
+            "account_id": account.account_id,
+            "name": f'{account.first_name} {account.last_name}',
+            "username": account.username,
+            "hobby": hobby.name if hobby else '',
+            "following": associated[0],
+            "friend": associated[1],
+            "avatar": account.avatar,
+            "type": "account"
+        }
 
     @staticmethod
     def serialise_hobby(hobby: Hobby):
         return {
             "code_name": hobby.code_name,
-            "name": hobby.name
+            "name": hobby.name,
+            "type": "hobby"
         }
 
+    def search_tags(self):
+        tags = Tags.objects.filter(self.search_tag_query())
+        return [self.serialise_tag(tag) for tag in sorted(tags, key=lambda tag_obj: fuzz.ratio(self.query,
+                                                                                               tag_obj.tag),
+                                                          reverse=True)]
+
+    def search_users(self):
+        self.hobby = Hobby.objects.all()
+        accounts = Account.objects.filter(self.search_account_query()).exclude(self.exclusion_user_query())
+
+        if len(accounts) == 0:
+            accounts = Account.objects.filter(self.search_account_query(contains=True)) \
+                .exclude(self.exclusion_user_query())
+
+        def scoring_object(user: Account):
+            return fuzz.ratio(self.query, user.username), fuzz.ratio(self.query, user.first_name), \
+                   fuzz.ratio(self.query, user.last_name)
+
+        return [self.serialise_account(user) for user in
+                sorted(accounts, key=lambda user_obj: scoring_object(user_obj), reverse=True)]
+
     def search_hobby(self):
-        hobbies = Hobby.objects.filter(self.search_hobby_query()).values_list('name', flat=True)
-        return [self.serialise_hobby(hobby) for hobby in sorted(hobbies, key=lambda hobby: fuzz.ratio(self.query, hobby), reverse=True)]
+        hobbies = Hobby.objects.filter(self.search_hobby_query())
+        return [self.serialise_hobby(hobby) for hobby in
+                sorted(hobbies, key=lambda hobby: fuzz.ratio(self.query, hobby.name), reverse=True)]
 
     def search(self):
         return {

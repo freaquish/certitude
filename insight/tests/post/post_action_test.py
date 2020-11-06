@@ -40,11 +40,11 @@ class PostActionsUnitTestCase(APITestCase):
         for action in self.actions:
             act = PostActions(self.post_creator if action['account_id'] == '6392886167' else self.account, self.posts[0])
             prev_data = self.posts[0].action_count
-            act.micro_action(action['action'], for_test=False)
+            act.micro_action(action['action'], for_test=True)
             self.posts[0].refresh_from_db()
             score_post.refresh_from_db()
             scoreboard.refresh_from_db()
-            print(action, score_post.score, score_post.freshness_score, score_post.net_score, scoreboard.hobby_scores)
+            print(action, scoreboard.views, scoreboard.loves, scoreboard.shares, scoreboard.hobby_scores, scoreboard.net_score)
             self.assertEqual(prev_data, self.posts[0].action_count, "No Change occur")
 
 

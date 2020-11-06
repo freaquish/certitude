@@ -73,24 +73,32 @@ class Analyzer(AnalyzerInterface):
         score_post.save()
         return score_post
 
-    def manage_scoreboard(self, post: Post, created: bool = False):
-        scoreboards: QuerySet = Scoreboard.objects.filter(Q(account=post.account) & Q(expires_on__gte=get_ist()))
+    def manage_scoreboard(self, post: Post, created: bool = False, **actions):
+        scoreboards: QuerySet = Scoreboard.objects.filter(Q(account=post.account) & Q(expires_on__gte=get_ist()))\
+            .select_related('account')
         if not scoreboards:
             scoreboard: Scoreboard = Scoreboard.objects.create(account=post.account, created_at=get_ist(),
                                                                expires_on=next_sunday(get_ist()))
         else:
             scoreboard: Scoreboard = scoreboards.first()
-        hobby_reports: QuerySet = HobbyReport.objects.filter(account=post.account)
-        scores = {}
-        for report in hobby_reports:
-            scores[report.hobby.code_name] = self.score_post({'love': report.loves, 'view': report.views,
-                                                              'share': report.shares})
+        scores = scoreboard.hobby_scores
+        score_posts = ScorePost.objects.filter(post=post)
+        if not score_posts:
+            return None
+        score_post: ScorePost = score_posts.first()
+        if not post.hobby.code_name in scores:
+            scores[post.hobby.code_name] = 0
+        scores[post.hobby.code_name] += float(score_post.net_score)
         if created:
-            scores = {k: v+self.WEIGHT_CREATE for k, v in scores.items()}
+            scores = {k: float(v) + self.WEIGHT_CREATE for k, v in scores.items()}
+        if len(actions):
+            for action, value in actions.items():
+                scoreboard.__dict__[f'{action}s'] += value
         self.user.hobby_map = scores
         self.user.primary_hobby = max(scores, key=lambda hobby: scores[hobby])
         self.user.save()
         scoreboard.hobby_scores = scores
+        scoreboard.net_score = sum([points for points in scoreboard.hobby_scores.values()])
         scoreboard.save()
         return scoreboard
 
@@ -118,7 +126,10 @@ class Analyzer(AnalyzerInterface):
         analyzer = Analyzer(user)
         if 'hobby' in kwargs and 'report' in kwargs:
             analyzer.manage_hobby_report(kwargs['hobby'], **kwargs['report'])
-        analyzer.user_activity(analyzer.manage_scoreboard(post))
+        actions = {}
+        if 'actions' in kwargs:
+            actions = kwargs['actions']
+        analyzer.user_activity(analyzer.manage_scoreboard(post, **actions))
         return None
 
     def analyzer_create_post(self, post: Post):
@@ -126,9 +137,9 @@ class Analyzer(AnalyzerInterface):
         self.manage_score_post(post, is_new=True)
         self.background_task.delay(self.user.account_id, post.post_id, created=True),
 
-    def analyze_post_action(self, post: Post, for_testing: bool = False, **actions):
+    def analyze_post_action(self, post: Post, for_test: bool = False, **actions):
         self.manage_score_post(post)
-        if for_testing:
-            self.user_activity(self.manage_scoreboard(post))
+        if for_test:
+            self.user_activity(self.manage_scoreboard(post, **actions))
             return None
-        self.background_task.delay(self.user.account_id, post.post_id)
+        self.background_task.delay(self.user.account_id, post.post_id, **actions)

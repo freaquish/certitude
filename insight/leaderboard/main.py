@@ -1,101 +1,47 @@
 """
 Comments about a shit piece of program written just to workout in the current scene
 @Author: Piyush Jaiswal
-@email: iampiyushjaisw al103@gmail.com
+@email: iampiyushjaiswal103@gmail.com
 @collaborator: Suyash Madhesia
 
 Visit insight.algol.Leaderboard
 """
-from insight.utils import get_ist, get_ist_date, get_ist_time
-from celery import shared_task
 from django.db.models import Q, QuerySet
-from datetime import timedelta
-from insight.models import *
+from insight.leaderboard.interface import *
 
 
-class LeaderBoardEngine:
-    """
-    Implmentation of Leaderboard used for serving hobby-wise user rank, weekly-user-rank, community-rank, community-user-rank
-    """
-    def __init__(self, **kwargs):
-        if 'hobby' in kwargs:
-            self.hobby = kwargs.get('hobby')
-        if 'user' in kwargs:
-            self.user = kwargs.get('user')
+class LeaderboardEngine(LeaderboardEngineInterface):
+
+    def hobby_rank_global(self, hobby: str = None) -> QuerySet:
+        expire_ques: Q = Q(expires_on__gte=get_ist())
+        hobby_query = expire_ques & Q(hobby_score__has_key=hobby) if hobby else expire_ques
+        scoreboard: Scoreboard = Scoreboard.objects.filter(hobby_query).select_related('account')\
+            .order_by('net_score' if hobby is None else hobby)
+        return scoreboard
+
+    def find_users_in_queryset(self, queryset: QuerySet, user_string=None) -> QuerySet:
+        if self.user and not user_string:
+            return queryset.filter(account=self.user)
+        return queryset.filter(Q(username__istartswith=user_string) | Q(first_name__istartswith=user_string) |
+                               Q(last_name__istartswith=user_string))
+
+    def sort_by_love(self, queryset: QuerySet) -> QuerySet:
+        return queryset.order_by('loves')
+
+    def sort_by_view(self, queryset: QuerySet) -> QuerySet:
+        return queryset.order_by('views')
 
     @staticmethod
-    def serialize_hobby_rank(scoreboard: Scoreboard, hobby: str, rank: int):
+    def serialize_hobby_rank(scoreboard: Scoreboard, rank: int, hobby: str = None) -> dict:
         return {
             "account": {
                 "account_id": scoreboard.account.account_id,
                 "username": scoreboard.account.username,
-                "name": f'{scoreboard.account.first_name} {scoreboard.account.last_name}',
+                "name": scoreboard.account.first_name + " " + scoreboard.account.last_name,
                 "avatar": scoreboard.account.avatar
             },
-            "hobby": hobby,
-            "score": scoreboard.hobby_scores[hobby],
+            "hobby_score": scoreboard.hobby_scores[hobby] if hobby else  scoreboard.net_score,
+            "score": scoreboard.net_score,
             "rank": rank
         }
 
-    def hobby_rank_global(self):
-        # user rank in each hobby
-        scoreboards = Scoreboard.objects.filter(Q(hobby_scores__has_key=self.hobby) & Q(
-            Q(created_at__lte=get_ist_date()) & Q(expires_on__gte=get_ist_date())))
-        if scoreboards:
-            scoreboards = sorted(scoreboards, key=lambda scoreboard: scoreboard.hobby_scores[self.hobby], reverse=True)
-            return [self.serialize_hobby_rank(scoreboard, self.hobby, index + 1) for index, scoreboard in
-                    enumerate(scoreboards)]
-        else:
-            return []
-
-    @staticmethod
-    def post_rank(code_name: str):
-        # post rank in particular hobby
-        posts = Post.objects.filter(Q(last_activity_on__gte=get_ist() - timedelta(days=7)) &
-                                    Q(hobby__code_name=code_name)).order_by('score')
-        for index, post in enumerate(posts):
-            post.rank = index
-            post.save()
-            yield post
-
-    @shared_task
-    def weekly_rank_user(account_id: str):
-        # weekly ranking of user, assigns rank-badge
-        accounts = Account.objects.filter(account_id=account_id)
-        if not accounts:
-            return None
-        account: Account = accounts.first()
-        scoreboards = Scoreboard.objects.filter(Q(account=account) & Q(expires_on=get_ist_date())).order_by('net_score')
-        length = len(scoreboards)
-        hobbies = Hobby.objects.all()
-        if scoreboards:
-            # scoreboards = sorted(scoreboards, key=lambda scoreboard: scoreboard.net_score)
-            for index in range(len(scoreboards)):
-                scoreboards[index].rank = index + 1
-                rank_badge = RankBadge.objects.create(
-                    competition_name='Weekly Competition', date_field=scoreboards[index].expires_on,
-                    hobby=Hobby.objects.get(code_name=account.primary_hobby), account=account,
-                    total=length, rank=index + 1, score=scoreboards[index].net_score
-                )
-                scoreboards[index].save()
-            return None
-
-    @staticmethod
-    def serialize_rank_badge(badge: RankBadge):
-        return {
-            "competition_name": badge.competition_name,
-            "date": badge.date_field.strftime('%d-%M-%Y'),
-            "total": badge.total,
-            "rank": badge.rank,
-            "score": badge.score,
-            "hobby": badge.hobby
-        }
-
-    def fetch_global_user_rank(self):
-        # this method fetches rank badge of given user
-        # this week if |created_at| <----> |expires_on|
-        # if n : given date, is gte created_at and lte expires_on
-        rank_badges = RankBadge.objects.filter(account=self.user).order_by('-date_field')
-        if rank_badges:
-            return [self.serialize_rank_badge(badge) for badge in rank_badges]
-        return []

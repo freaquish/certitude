@@ -21,6 +21,7 @@ class PostCreationUnitTestCase(APITestCase):
 
     def testPostCreation(self):
         post_file = open('insight/tests/test_cases/post_creation.json')
+        Tags.objects.create(tag='#me')
         post_json = json.load(post_file)
         created_h_tags = []
         created_a_tags = []
@@ -40,6 +41,7 @@ class PostCreationUnitTestCase(APITestCase):
         # testing all tags are created
         all_tags = created_h_tags + created_a_tags
         tags_in_db = Tags.objects.filter(tag__in=all_tags)
+        print(tags_in_db)
         print("Testing Tags -----------------------------------------------\n")
         self.assertEqual(len(all_tags), len(tags_in_db), "All tags not created")
 
