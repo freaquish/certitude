@@ -1,6 +1,6 @@
 from django.urls import path
 from insight.leaderboard.views import *
 
-urlpatterns =[
+urlpatterns = [
     path('score', LeaderboardView.as_view()),
 ]

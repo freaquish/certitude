@@ -32,6 +32,19 @@ class LeaderboardEngine(LeaderboardEngineInterface):
         return queryset.order_by('views')
 
     @staticmethod
+    def slice(queryset: QuerySet, *params):
+        length = len(queryset)
+        if length < 50:
+            return queryset
+        start, end = 0, length
+        if len(params) == 2:
+            start, end = params[0], params[1]
+        elif len(params) == 1:
+            end = params[0]
+        return queryset[start: end]
+
+
+    @staticmethod
     def serialize_hobby_rank(scoreboard: Scoreboard, rank: int, hobby: str = None) -> dict:
         return {
             "account": {
