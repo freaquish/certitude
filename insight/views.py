@@ -180,6 +180,24 @@ class GeneralMicroActionView(APIView):
         return Response({'comments': serialized}, status=status.HTTP_200_OK)
 
 
+class ChangePassword(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user: Account = request.user
+        data = json.loads(request.body)
+        if user.check_password(data['old_password']):
+            print(data)
+            user.set_password(data['new_password'])
+            user.save()
+            token: Token = Token.objects.get(user=user)
+            token.delete()
+            token: Token = Token.objects.create(user=user)
+            return Response({"token": token.key}, status=status.HTTP_202_ACCEPTED)
+        return Response({}, status=status.HTTP_403_FORBIDDEN)
+
+
 class ManageAssociation(APIView):
     permission_classes = [AllowAny]
     """
@@ -242,34 +260,35 @@ class ThirdPartyProfileView(APIView):
         accounts: QuerySet = Account.objects.filter(username=username)
         if accounts:
             account: Account = accounts.first()
-            print(request.user.username)
-            if self.user == account:
-                return Response({"self": 1}, status=status.HTTP_200_OK)
             serialized = ProfileSerializer(account).data
             following = 0
-            friends = 0
             if self.valid_user:
                 following = 1 if account.account_id in self.user.following else 0
-                friends = 1 if account.account_id in self.user.friend else 0
-                if friends == 0:
-                    notifications = Notification.objects.filter(Q(Q(Q(to=account) | Q(to=self.user)) & Q(
-                        Q(header=self.user.username) | Q(header=account.username))) & Q(type='REQU'))
-                    sent_notifications: QuerySet = notifications.filter(Q(to=account) & Q(header=self.user.username))
-                    received_notifications: QuerySet = notifications.filter(
-                        Q(to=self.user) & Q(header=account.username))
-                    if sent_notifications:
-                        serialized['isSentRequest'] = 1
-                    if received_notifications:
-                        serialized['isReceivedRequest'] = 1
-
+            hobby_query = None
+            for hobby in account.hobby_map.keys():
+                if hobby_query:
+                    hobby_query = hobby_query | Q(code_name=hobby)
+                else:
+                    hobby_query = Q(code_name=hobby)
+            hobbies = []
+            if hobby_query:
+                hobbies: QuerySet = Hobby.objects.filter(hobby_query)
+            serialize_hobby = [hobby.name for hobby in hobbies]
             serialized['following'] = following
-            serialized['friend'] = friends
-            posts = Post.objects.filter(account__account_id=account.account_id)
-            serialized_posts = [{"post_id": post.post_id, "hobby": post.hobby.code_name,
-                                 "assets": post.assets, "editor": post.editor} for post in posts]
-            serialized['posts'] = serialized_posts
-            return Response(serialized, status=status.HTTP_200_OK)
+            serialized['hobbies'] = serialize_hobby
+            return Response({"data":serialized, "self": 1 if self.user == account else 0}, status=status.HTTP_200_OK)
         return Response({}, status=status.HTTP_404_NOT_FOUND)
+
+
+class ProfilePosts(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, username):
+        posts: QuerySet = Post.objects.filter(account__username=username)
+        if not posts:
+            return Response({"posts": []}, status=status.HTTP_200_OK)
+        serialized = [{"post_id": post.post_id, "hobby": post.hobby.code_name, "assets": post.assets} for post in posts]
+        return Response({"posts": serialized}, status=status.HTTP_200_OK)
 
 
 class ProfileView(APIView):
@@ -277,14 +296,21 @@ class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = request.user
+        user: Account = request.user
         if not user:
             return Response({}, status=status.HTTP_404_NOT_FOUND)
-        posts = Post.objects.filter(account__account_id=user.account_id)
-        serialized_posts = [{"post_id": post.post_id, "hobby": post.hobby.code_name,
-                             "assets": post.assets, "editor": post.editor} for post in posts]
+        hobby_query = None
+        for hobby in user.hobby_map.keys():
+            if hobby_query:
+                hobby_query = hobby_query | Q(code_name=hobby)
+            else:
+                hobby_query = Q(code_name=hobby)
+        hobbies = []
+        if hobby_query:
+            hobbies: QuerySet = Hobby.objects.filter(hobby_query)
+        serialize_hobby = [hobby.name for hobby in hobbies]
         serialized_account = ProfileSerializer(user).data
-        serialized_account['posts'] = serialized_posts
+        serialized_account['hobbies'] = serialize_hobby
         return Response(serialized_account, status=status.HTTP_200_OK)
 
     def post(self, request):
@@ -296,24 +322,23 @@ class ProfileView(APIView):
             coords = data['coords']
             del data['coords']
             user.insert_coords(json_to_coord(coords))
-        if 'places' in data:
-            place_list = []
-            for place in data['places']:
-                place_list.append(Places(place_name=place[0], city=place[1]))
-                user.places.append(f'{place[0]},{place[1]}')
-            Places.objects.bulk_create(place_list)
-            del data['places']
         try:
             user.__dict__.update(**data)
             user.save()
         except Exception as e:
             return Response({}, status=status.HTTP_400_BAD_REQUEST)
-
-        posts = Post.objects.filter(account_id=user.account_id)
-        serialized_posts = [{"post_id": post.id, "hobby": post.hobby, "assets": post.assets, "editor": post.editor} for
-                            post in posts]
+        hobby_query = None
+        for hobby in user.hobby_map.keys():
+            if hobby_query:
+                hobby_query = hobby_query | Q(code_name=hobby)
+            else:
+                hobby_query = Q(code_name=hobby)
+        hobbies = []
+        if hobby_query:
+            hobbies: QuerySet = Hobby.objects.filter(hobby_query)
+        serialize_hobby = [hobby.name for hobby in hobbies]
         serialized_account = ProfileSerializer(user).data
-        serialized_account['posts'] = serialized_posts
+        serialized_account['hobbies'] = serialize_hobby
         return Response(serialized_account, status=status.HTTP_202_ACCEPTED)
 
 

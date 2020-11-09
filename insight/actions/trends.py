@@ -19,7 +19,7 @@ class Trends(TrendsInterface):
             self.account: models.Account = account[0]
             super().__init__(self.account)
 
-    def extract_top_hobby_post(self, hobby_codes: dict) -> Q:
+    def extract_top_hobby_post(self, hobby_codes: dict, queryset: QuerySet = None) -> Q:
         hobby_query = None
         for key in hobby_codes.keys():
             if hobby_query:
@@ -27,6 +27,9 @@ class Trends(TrendsInterface):
             else:
                 hobby_query = Q(post__hobby_code_name=key)
         return hobby_query
+
+    def extract_new_posts(self) -> Q:
+        return Q()
 
     def annotate_interface_formula(self, queryset: QuerySet, follower_weight: float = 0.0) -> QuerySet:
         hobby_reports = models.HobbyReport.objects.filter(account=self.account)
@@ -66,9 +69,9 @@ class Trends(TrendsInterface):
         query_set: QuerySet = models.ScorePost.objects.filter(self.extract_top_ranked_for_unknown() &
                                                               self.extract_followings_post())
         if self.account:
-            hobby_query = self.extract_top_hobby_post(self.account.hobby_map)
+            hobby_query: Q = self.extract_top_hobby_post(self.account.hobby_map)
             if hobby_query:
-                hobby_query: QuerySet = query_set.filter(hobby_query)
+                hobby_query_set: QuerySet = query_set.filter(hobby_query)
             annotated_queryset: QuerySet = self.annotate_interface_formula(query_set)
             sorted_queryset: QuerySet = annotated_queryset.order_by('interface_score')
             # Exclusion of post within 1 day, last online will be used

@@ -19,7 +19,7 @@ class Analyzer(AnalyzerInterface):
     @staticmethod
     def calculate_freshness_score(post: Post) -> float:
         diff = get_ist() - post.created_at
-        return math.exp(-diff.days)
+        return math.exp(-diff.days/4) + 1.8
 
     @staticmethod
     def audit_post_counts(post: Post, after=None) -> dict:
@@ -57,7 +57,7 @@ class Analyzer(AnalyzerInterface):
         if for_comp:
             score += (self.WEIGHT_UP_VOTE * counts['up_vote']) + (self.WEIGHT_DOWN_VOTE * counts['down_vote'])
 
-        return score
+        return score * 0.01
 
     def manage_score_post(self, post: Post, is_new: bool = False, after: datetime = None):
         if is_new:

@@ -78,7 +78,8 @@ class PostSerializer:
         }, 'caption': {}, 'footer': {}, 'meta': {}, 'post_id': self.post.post_id}
         data['meta']['score'] = self.post.score
         time_left = get_ist() - self.post.created_at
-        data['meta']['created'] =  '{0:.2f}d'.format(time_left.days) if time_left.days >= 1   else  '{0:.2f}h'.format(time_left.seconds / 3600) 
+        data['meta']['created'] = '{0:.2f}d'.format(time_left.days) if time_left.days >= 1 else '{0:.2f}h'.format(
+            time_left.seconds / 3600)
         data['meta']['editor'] = self.post.editor
         data['meta']['account_id'] = user.account_id
         data['header']['avatar'] = user.avatar
@@ -91,7 +92,8 @@ class PostSerializer:
             data['header']['following'] = 1
 
         data['header']['rank'] = self.post.rank if self.post.rank != 0 else 'null'
-        data['header']['influencer'] = 1 if user.influencer and user.influencing_hobby == self.post.hobby.code_name else 0
+        data['header'][
+            'influencer'] = 1 if user.influencer and user.influencing_hobby == self.post.hobby.code_name else 0
         data['body'] = self.post.assets
         data['caption'] = self.post.caption
         data['footer']['action_map'] = self.post.action_count
@@ -111,8 +113,8 @@ class ProfileSerializer(ModelSerializer):
     class Meta:
         model = Account
         fields = ('account_id', 'avatar', 'first_name', 'last_name', 'username',
-                  'influencer', 'hobby_map', 'follower_count', 'following_count', 'friend_count',
-                  'description', 'places'
+                  'follower_count', 'following_count',
+                  'description'
                   )
 
 
@@ -143,17 +145,18 @@ class ActionStoreSerializer:
             json[action.post_id] = self._render(action)
         return json
 
+
 class ShallowPostSerializer:
     def __init__(self, posts):
         self.posts = posts
-    
-    @staticmethod 
-    def _serialise(post:Post):
+
+    @staticmethod
+    def _serialise(post: Post):
         return {
             "assets": post.assets,
-            "post_id":post.post_id,
-            "meta":{
-                "account_id":post.account.account_id,
+            "post_id": post.post_id,
+            "meta": {
+                "account_id": post.account.account_id,
                 "username": post.account.username,
                 "avatar": post.account.avatar
             }
@@ -165,22 +168,24 @@ class ShallowPostSerializer:
             renderd.append(self._serialise(post))
         return renderd
 
+
 class CommentSerializer:
     def __init__(self, comments):
         self.comments = comments
 
-    def _serialise(self,comment: UserPostComment):
+    def _serialise(self, comment: UserPostComment):
         time_left = get_ist() - comment.created_at
         return {
-            "account":{
+            "account": {
                 "account_id": comment.account.account_id,
                 "username": comment.account.username,
-                "name": comment.account.first_name + ' '+ comment.account.last_name,
-                "avatar": comment.account.avatar 
+                "name": comment.account.first_name + ' ' + comment.account.last_name,
+                "avatar": comment.account.avatar
             },
             "comment": comment.comment,
             "created": f'{time_left}d' if time_left.days > 0 else '{0:.2f}h'.format(time_left.seconds / 3600)
         }
+
     def render(self):
         renderd = [self._serialise(comment) for comment in self.comments]
-        return renderd 
+        return renderd
