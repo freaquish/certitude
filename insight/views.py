@@ -13,6 +13,7 @@ from insight.actions.feed import Feed
 from insight.actions.post_actions import authenticated_association
 from rest_framework.authtoken.models import Token
 from insight.actions.main import PostActions
+from insight.actions.trends import Trends
 from insight.workers.post_creation_manager import PostCreationManager
 from insight.paginator import FeedPaginator
 from insight.serializers import *
@@ -344,20 +345,21 @@ class ProfileView(APIView):
 
 class PaginatedFeedView(GenericAPIView):
     permission_classes = [AllowAny]
-    feed = Feed()
-    queryset = feed.feed_anonymous()
+    trends = Trends()
+    queryset = None
     serializer_class = PostSerializer
     pagination_class = FeedPaginator
 
     def get(self, request):
         user, valid = request.user, True
         if valid:
-            feed = Feed(user)
-            self.queryset, actions = feed.extract_feed_known()
+            trends = Trends(user)
+            self.queryset, actions = trends.get_posts(trends.extract_queryset())
             # serialized_actions = ActionStoreSerializer(actions).data()
+        else:
+            self.queryset = self.trends.extract_queryset()
         length_queryset = len(self.queryset)
         page = self.paginate_queryset(self.queryset)
-
         if page is not None:
             serialized = PostSerializer(page, user if valid else None)
             if valid:

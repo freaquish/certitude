@@ -9,13 +9,12 @@ class FeedPaginator(CursorPagination):
     page= DEFAULT_PAGE
     page_size = DEFAULT_PAGE_SIZE
     page_size_query_param = 'page_size'
-    ordering = '-created_at' # '-creation' is default
+    ordering = '-current_score' # '-creation' is default
 
     def get_paginated_response(self, data):
         next_link = self.get_next_link()
         if next_link is not None:
             next_link = next_link[next_link.index('?'):len(next_link)]
-        # print(next_link)
         return Response({
             'links': {
                 'next': next_link,

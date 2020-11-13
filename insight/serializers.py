@@ -35,7 +35,8 @@ class PostSerializer:
 
     def render(self):
         renderd = []
-        for post in self.posts:
+        for score_post in self.posts:
+            post = score_post.post
             if not self.is_asset_valid(post.assets):
                 continue
             self.post = post
@@ -48,7 +49,8 @@ class PostSerializer:
         renderd = []
         if len(self.posts) == 0:
             return renderd
-        for post in self.posts:
+        for score_post in self.posts:
+            post = score_post.post
             if not self.is_asset_valid(post.assets):
                 continue
             self.post = post
