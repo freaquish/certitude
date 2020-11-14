@@ -33,6 +33,8 @@ class LoginView(APIView):
         if not account.check_password(data['password']):
             return Response({"error": "Invalid Credentials"}, status=status.HTTP_401_UNAUTHORIZED)
         token: Token = Token.objects.get(user=account)
+        token.delete()
+        token: Token = Token.objects.create(user=account)
         if 'coords' in data.keys():
             account.objects.insert_coords(json_to_coord(data['coords']))
         return Response({'token': token.key, 'first_name': account.first_name, 'avatar': account.avatar},
@@ -64,7 +66,12 @@ def account_available(request):
         if not accounts:
             return Response({'available': 1}, status=status.HTTP_200_OK)
         else:
-            return Response({'available': 0}, status=status.HTTP_200_OK)
+            data = {'available': 0}
+            if 'rsp' in request.GET:
+                account = accounts.first()
+                token = Token.objects.get(user=account)
+                data['token'] = token.key + f'{account_id[2]}{account_id[6]}'
+            return Response(data, status=status.HTTP_200_OK)
     else:
         return Response({'available': 0}, status=status.HTTP_200_OK)
 
@@ -96,6 +103,26 @@ class RegistrationView(APIView):
         except KeyError as key_error:
             print(key_error)
             return Response({"error": "Incomplete data"}, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+
+class ResetPassword(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        data = json.loads(request.body)
+        if 'token' not in data or 'password' not in data:
+            return Response({}, status=status.HTTP_403_FORBIDDEN)
+        token_key = data['token']
+        token_key = token_key[:len(token_key)-2]
+        tokens: QuerySet = Token.objects.filter(key=token_key)
+        if not tokens:
+            return Response({}, status=status.HTTP_404_NOT_FOUND)
+        token: Token = tokens.first()
+        user: Account = token.user
+        token.delete()
+        user.set_password(data['password'])
+        token: Token = Token.objects.create(user=user)
+        return Response({}, status=status.HTTP_202_ACCEPTED)
 
 
 class CreateHobby(APIView):
@@ -354,7 +381,7 @@ class PaginatedFeedView(GenericAPIView):
         user, valid = request.user, True
         if valid:
             trends = Trends(user)
-            self.queryset, actions = trends.get_posts(trends.extract_queryset())
+            self.queryset, actions = trends.get_posts(trends.extract_queryset(trends.extract_trending_in_hobby_user()))
             # serialized_actions = ActionStoreSerializer(actions).data()
         else:
             self.queryset = self.trends.extract_queryset()

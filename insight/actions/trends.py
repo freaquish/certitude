@@ -12,19 +12,28 @@ later Nearest Hobby Algorithm should be implemented soon
 
 class Trends(TrendsInterface):
 
-    def extract_post_trending_query(self, *val) -> Q:
-        return Q(net_score__gte=val if len(val) != 0 else 1.3)
-
-    def extract_trending_in_hobby(self, query: Q, *hobbies) -> Q:
+    def extract_trending_in_hobby_user(self, *hobbies) -> Q:
+        report_weights: QuerySet = models.HobbyReport.objects.filter(account=self.account).select_related('hobby')\
+            .values_list('hobby__weight', flat=True)
         hobby_query = None
-        for hobby in hobbies:
+        for weight in report_weights:
+            query = Q(weight__gte=abs(float(weight) - 3.0)) & Q(weight__lte=abs(float(weight) + 3.0))
             if hobby_query:
-                hobby_query = hobby_query | Q(post__hobby__code_name=hobby)
+                hobby_query = hobby_query | query
             else:
-                hobby_query = Q(post__hobby__code_name=hobby)
+                hobby_query = query
         if hobby_query:
-            return query & hobby_query
-        return query
+            hobbies: QuerySet = models.Hobby.objects.filter(hobby_query).values_list('code_name', flat=True)
+            required_hobbies = None
+            for hobby in hobbies:
+                if required_hobbies:
+                    required_hobbies = required_hobbies | Q(post__hobby__code_name=hobby)
+                else:
+                    required_hobbies = Q(post__hobby__code_name=hobby)
+            if required_hobbies:
+                return required_hobbies
+            return None
+        return None
 
     def extract_queryset(self, *query: Q) -> QuerySet:
         score_expression: ExpressionWrapper = ExpressionWrapper(
@@ -32,15 +41,16 @@ class Trends(TrendsInterface):
                                       output_field=DecimalField())), output_field=DecimalField()
             )
         annote = {'current_score': score_expression}
-        score_posts: QuerySet = models.ScorePost.objects.annotate(**annote).select_related('post')
+        if query:
+            score_posts: QuerySet = models.ScorePost.objects.filter(query[0]).annotate(**annote).select_related('post')
+        else:
+            score_posts: QuerySet = models.ScorePost.objects.annotate(**annote).select_related('post')
         return score_posts
 
     def get_posts(self, queryset: QuerySet):
         if self.account:
             post_query = None
-            posts = []
             for score_post in queryset:
-                posts.append(score_post.post)
                 if post_query:
                     post_query = post_query | Q(post_id=score_post.post.post_id)
                 else:

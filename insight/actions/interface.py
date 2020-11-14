@@ -8,16 +8,7 @@ class TrendsInterface:
         if account:
             self.account: models.Account = account[0]
 
-    def extract_post_trending_query(self) -> Q:
-        """
-        Returns Q encoded query for extracting trending queries
-
-        The Query will be used to extract all trending posts with highest score
-        by calling Score Post using net_score
-        """
-        pass
-
-    def extract_trending_in_hobby(self, query: Q, *hobbies) -> Q:
+    def extract_trending_in_hobby_user(self, *hobbies) -> Q:
         """
         Returns Q encoded query using the argument query to filter provided hobbies
         """
