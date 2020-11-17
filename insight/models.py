@@ -101,6 +101,7 @@ class Hobby(models.Model):
     editors = ArrayField(models.CharField(max_length=30), default=list)
     limits = JSONField(default=dict)
     weight = models.DecimalField(max_digits=5, decimal_places=3, default=0.0)
+    last_scoreboard = models.DateField(default=get_ist())
 
 
 class HobbyReport(models.Model):
@@ -232,6 +233,7 @@ class ScorePost(models.Model):
 class Scoreboard(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     created_at = models.DateField(default=get_ist_date())
+    original_creation = models.DateTimeField(default=get_ist())
     expires_on = models.DateField(default=get_ist_date())
     hobby_scores = JSONField(default=dict)
     views = models.IntegerField(default=0)

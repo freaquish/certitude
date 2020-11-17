@@ -78,6 +78,7 @@ class Analyzer(AnalyzerInterface):
             .select_related('account')
         if not scoreboards:
             scoreboard: Scoreboard = Scoreboard.objects.create(account=post.account, created_at=get_ist(),
+                                                               original_creation=get_ist(),
                                                                expires_on=next_sunday(get_ist()))
         else:
             scoreboard: Scoreboard = scoreboards.first()
@@ -98,6 +99,10 @@ class Analyzer(AnalyzerInterface):
         self.user.primary_hobby = max(scores, key=lambda hobby: scores[hobby])
         self.user.save()
         scoreboard.hobby_scores = scores
+        scoreboard.created_at = get_ist()
+        scoreboard.expires_on = next_sunday(get_ist())
+        hobbies: QuerySet = Hobby.objects.filter(code_name__in=[hobby for hobby in scores.keys()])
+        hobbies.update(last_scoreboard=next_sunday(get_ist()))
         scoreboard.net_score = sum([points for points in scoreboard.hobby_scores.values()])
         scoreboard.save()
         return scoreboard
