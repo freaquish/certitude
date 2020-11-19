@@ -54,3 +54,7 @@ def post_id_generator():
 
 def next_sunday(today: datetime):
     return today + timedelta(days=6 - today.weekday())
+
+
+def last_monday(today: datetime):
+    return today - timedelta(days=today.weekday())

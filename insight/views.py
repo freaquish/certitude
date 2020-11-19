@@ -59,21 +59,18 @@ def username_available(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def account_available(request):
-    result = False
     account_id = request.GET['aid']
-    if len(account_id) >= 10:
-        accounts = Account.objects.filter(account_id=account_id)
-        if not accounts:
-            return Response({'available': 1}, status=status.HTTP_200_OK)
-        else:
-            data = {'available': 0}
-            if 'rsp' in request.GET:
-                account = accounts.first()
-                token = Token.objects.get(user=account)
-                data['token'] = token.key + f'{account_id[2]}{account_id[6]}'
-            return Response(data, status=status.HTTP_200_OK)
+    accounts = Account.objects.filter(account_id=account_id)
+    if not accounts:
+        return Response({'available': 1}, status=status.HTTP_200_OK)
     else:
-        return Response({'available': 0}, status=status.HTTP_200_OK)
+        data = {'available': 0}
+        if 'rsp' in request.GET:
+            account = accounts.first()
+            token = Token.objects.get(user=account)
+            data['token'] = token.key + f'{account_id[2]}{account_id[6]}'
+            return Response(data, status=status.HTTP_200_OK)
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class RegistrationView(APIView):
@@ -121,6 +118,7 @@ class ResetPassword(APIView):
         user: Account = token.user
         token.delete()
         user.set_password(data['password'])
+        user.save()
         token: Token = Token.objects.create(user=user)
         return Response({}, status=status.HTTP_202_ACCEPTED)
 

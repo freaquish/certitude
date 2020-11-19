@@ -14,39 +14,31 @@ class LeaderboardView(APIView):
     """
       also sends hobbies
       Working of this view is based on keyword based comparing
-      For instance hobbies is the only keyword sent, later need to add users communities, places, competitions and q for unkonwn
+      For instance hobbies is the only keyword sent, later need to add users communities, places, competitions and q for unknown
     """
     def get(self, request):
         user: Account = request.user
         leaderboard = LeaderboardEngine(user=user)
         hobby = None
         scoreboards = []
-        if 'hobby' in request.GET:
-            hobby = request.GET['hobby']
-            scoreboards = leaderboard.hobby_rank_global(hobby=hobby)
-        else:
-            scoreboards = leaderboard.hobby_rank_global()
-        if 'search' in request.GET:
-            scoreboards = leaderboard.find_users_in_queryset(scoreboards, user_string=request.GET['search'])
-
+        sort = 'net_score'
         if 'sort' in request.GET:
-            if request.GET['sort'] == 'loves':
-                scoreboards = leaderboard.sort_by_love(scoreboards)
-            elif request.GET['sort'] == 'views':
-                scoreboards = leaderboard.sort_by_view(scoreboards)
+            sort = request.GET['sort']
+        hobby = None
+        if 'hobby' in request.GET and request.GET['hobby'] != 'all':
+            hobby = request.GET['hobby']
+        scoreboards = leaderboard.hobby_rank_global(hobby=hobby, sort=sort)
         serialise_hobby = {}
         if 'no_hobby' not in request.GET:
-            hobbies = Hobby.objects.all()
+            hobbies = Hobby.objects.filter(last_scoreboard__gte=get_ist())
             serialise_hobby = HobbySerializer(hobbies, many=True).data
+        if 'search' in request.GET:
+            serialised_scoreboards = leaderboard.get_ranked_user(scoreboards, user_string=request.GET['search'])
+            return Response({"hobbies": serialise_hobby, "scoreboards": serialised_scoreboards}, status=status.HTTP_200_OK)
 
         # TODO: Paginator in second edition
-        scoreboards = leaderboard.slice(scoreboards, 50)
-        serialized_scoreboards = [leaderboard.serialize_hobby_rank(scoreboard, index, hobby=hobby) for index, scoreboard in enumerate(scoreboards)]
-        self_score = {}
+        serialized_scoreboards = []
         for index, scoreboard in enumerate(scoreboards):
             score_card = leaderboard.serialize_hobby_rank(scoreboard, index, hobby=hobby)
-            if scoreboard.account.account_id == user.account_id:
-                self_score = score_card.copy()
             serialized_scoreboards.append(score_card)
-        return Response({"hobbies": serialise_hobby, "scoreboards": serialized_scoreboards,
-                         "self": self_score}, status=status.HTTP_200_OK)
+        return Response({"hobbies": serialise_hobby, "scoreboards": serialized_scoreboards}, status=status.HTTP_200_OK)

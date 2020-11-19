@@ -14,7 +14,7 @@ class LeaderboardEngineInterface:
     it returns queryset
     """
 
-    def hobby_rank_global(self, hobby: str = None) -> QuerySet:
+    def hobby_rank_global(self, hobby: str = None, sort: str = 'net_score') -> QuerySet:
         pass
 
     """
@@ -26,24 +26,11 @@ class LeaderboardEngineInterface:
         pass
 
     """
-    Search users within the given queryset using text search filter
+    Search users the scoreboard using text search filter
     returns the queryset, if user_string is none than returns the only queryset
     containing instance users score in the hobby
     """
 
-    def find_users_in_queryset(self, queryset: QuerySet, user_string=None) -> QuerySet:
+    def find_users_in_queryset(self,queryset: QuerySet, user_string=None) -> QuerySet:
         pass
 
-    """
-    Sort given queryset with most love
-    """
-
-    def sort_by_love(self, queryset: QuerySet) -> QuerySet:
-        pass
-
-    """
-    Sort given queryset with most views
-    """
-
-    def sort_by_view(self, queryset: QuerySet) -> QuerySet:
-        pass

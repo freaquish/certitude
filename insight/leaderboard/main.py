@@ -6,46 +6,45 @@ Comments about a shit piece of program written just to workout in the current sc
 
 Visit insight.algol.Leaderboard
 """
-from django.db.models import Q, QuerySet
+from django.db.models import Q, QuerySet, Window, F
+from fuzzywuzzy import fuzz
+from insight.utils import next_sunday, last_monday
+from django.contrib.postgres.fields.jsonb import KeyTextTransform
+from django.db.models.functions import DenseRank
 from insight.leaderboard.interface import *
 
 
 class LeaderboardEngine(LeaderboardEngineInterface):
 
-    def hobby_rank_global(self, hobby: str = None) -> QuerySet:
-        expire_ques: Q = Q(expires_on__gte=get_ist())
-        hobby_query = expire_ques & Q(hobby_score__has_key=hobby) if hobby else expire_ques
-        scoreboard: Scoreboard = Scoreboard.objects.filter(hobby_query).select_related('account')\
-            .order_by('net_score' if hobby is None else hobby)
-        return scoreboard
+    def hobby_rank_global(self, hobby: str = None, sort: str = 'net_score') -> QuerySet:
+        query = Q(expires_on__gte=get_ist().date()) & Q(created_at__lte=get_ist().date())
+        ordering = sort
+        dense_ranking = Window(
+            expression=DenseRank(),
+            order_by=F('scored').desc()
+        )
+        annotate = {'scored': F('net_score'), 'ranked': dense_ranking}
+        if hobby:
+            query = query & Q(hobby_scores__has_key=hobby)
+            ordering = f'hobby_scores__{hobby}' if sort == 'net_score' else sort
+            annotate['scored'] = KeyTextTransform(hobby, 'hobby_scores')
+        return Scoreboard.objects.filter(query).annotate(**annotate)
 
     def find_users_in_queryset(self, queryset: QuerySet, user_string=None) -> QuerySet:
-        if self.user and not user_string:
-            return queryset.filter(account=self.user)
-        return queryset.filter(Q(username__istartswith=user_string) | Q(first_name__istartswith=user_string) |
-                               Q(last_name__istartswith=user_string))
+        account_str = user_string
+        if not user_string:
+            account_str = self.user.account_id
+        return queryset.filter(Q(account__username__istartswith=account_str) |
+                               Q(account__first_name__istartswith=account_str))
 
-    def sort_by_love(self, queryset: QuerySet) -> QuerySet:
-        return queryset.order_by('loves')
+    def get_ranked_user(self, queryset: QuerySet, user_string: str) -> list:
+        scoreboards: QuerySet = self.find_users_in_queryset(queryset, user_string=user_string)
+        print(scoreboards.values_list('account', 'ranked', 'scored'))
+        return [self.serialize_hobby_rank(scoreboard, index)
+                for index, scoreboard in enumerate(sorted(scoreboards,
+                                                          key=lambda scoreboard: (fuzz.ratio(user_string , scoreboard.account.username), fuzz.ratio(user_string,scoreboard.account.first_name))))]
 
-    def sort_by_view(self, queryset: QuerySet) -> QuerySet:
-        return queryset.order_by('views')
-
-    @staticmethod
-    def slice(queryset: QuerySet, *params):
-        length = len(queryset)
-        if length < 50:
-            return queryset
-        start, end = 0, length
-        if len(params) == 2:
-            start, end = params[0], params[1]
-        elif len(params) == 1:
-            end = params[0]
-        return queryset[start: end]
-
-
-    @staticmethod
-    def serialize_hobby_rank(scoreboard: Scoreboard, rank: int, hobby: str = None) -> dict:
+    def serialize_hobby_rank(self, scoreboard: Scoreboard, rank: int, hobby: str = None) -> dict:
         return {
             "account": {
                 "account_id": scoreboard.account.account_id,
@@ -53,8 +52,7 @@ class LeaderboardEngine(LeaderboardEngineInterface):
                 "name": scoreboard.account.first_name + " " + scoreboard.account.last_name,
                 "avatar": scoreboard.account.avatar
             },
-            "hobby_score": scoreboard.hobby_scores[hobby] if hobby else  scoreboard.net_score,
-            "score": scoreboard.net_score,
-            "rank": rank
+            "score": scoreboard.scored,
+            "rank": scoreboard.ranked,
+            "isSelf": 1 if self.user and scoreboard.account == self.user else 0
         }
-
