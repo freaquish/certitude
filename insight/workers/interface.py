@@ -102,7 +102,7 @@ class AnalyzerInterface:
     of the post just actioned by user
     """
 
-    def manage_score_post(self, post: models.Post, is_new: bool = False, after: bool = False) -> models.ScorePost:
+    def manage_score_post(self, post: models.Post, is_new: bool = False, after: bool = False) :
         pass
 
     """
@@ -171,7 +171,7 @@ class AnalyzerInterface:
 
     """
     Called after post action fire, call manage_score_post, manage_hobby_report
-    actions will contain action such as view/love/share and 1 or -1
+    home will contain action such as view/love/share and 1 or -1
     then background_task
     On Post Action will increase report of acting user, user != post.user
     

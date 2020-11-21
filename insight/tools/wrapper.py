@@ -40,17 +40,17 @@ class WrapperSet:
         return sorted(self.wrapperset, key=lambda wrapper: wrapper.function_score, reverse=True)
 
     def __len__(self):
-        return len(self.queryset)
+        return self.queryset.count()
 
     def __bool__(self):
-        return len(self.queryset) > 0
+        return self.queryset.count() > 0
 
     def __iter__(self):
         self._index = 0
         self.model = self.queryset[self._index]
 
     def __next__(self):
-        if self._index < len(self.queryset):
+        if self._index < self.queryset.count():
             result = self.queryset[self._index]
             self._index += 1
             return result

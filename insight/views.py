@@ -1,6 +1,5 @@
 import json
 
-from django.db.models import QuerySet
 from rest_framework import status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import api_view, permission_classes
@@ -8,14 +7,17 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from typing import *
 
-from insight.actions.feed import Feed
-from insight.actions.post_actions import authenticated_association
+from django.db.models import Q, QuerySet
 from rest_framework.authtoken.models import Token
-from insight.actions.main import PostActions
-from insight.actions.trends import Trends
+from insight.home.main import PostActions
+from insight.home.trends import Trends
 from insight.workers.post_creation_manager import PostCreationManager
-from insight.paginator import FeedPaginator
+from insight.home.discover import Discover
+from insight.workers.hobby import RelevantHobby
+from insight.paginator import FeedPaginator, DiscoverPaginator
+
 from insight.serializers import *
 
 
@@ -27,17 +29,17 @@ class LoginView(APIView):
         data: dict = json.loads(request.body)
         accounts: QuerySet = Account.objects.filter(
             account_id=data['account_id'])
-        if not accounts:
+        if not accounts.exists():
             return Response({'error': 'No Account Found'}, status=status.HTTP_404_NOT_FOUND)
         account: Account = accounts.first()
         if not account.check_password(data['password']):
             return Response({"error": "Invalid Credentials"}, status=status.HTTP_401_UNAUTHORIZED)
         token: Token = Token.objects.get(user=account)
         token.delete()
-        token: Token = Token.objects.create(user=account)
+        new_token: Token = Token.objects.create(user=account)
         if 'coords' in data.keys():
             account.objects.insert_coords(json_to_coord(data['coords']))
-        return Response({'token': token.key, 'first_name': account.first_name, 'avatar': account.avatar},
+        return Response({'token': new_token.key, 'first_name': account.first_name, 'avatar': account.avatar},
                         status=status.HTTP_202_ACCEPTED)
 
 
@@ -48,7 +50,7 @@ def username_available(request):
     username = request.GET['username']
     if len(username) >= 6 and not ('#' in username and '$' in username and '@' in username):
         accounts = Account.objects.filter(username=username)
-        if not accounts:
+        if not accounts.exists():
             return Response({'available': 1}, status=status.HTTP_200_OK)
         else:
             return Response({'available': 0}, status=status.HTTP_200_OK)
@@ -61,7 +63,7 @@ def username_available(request):
 def account_available(request):
     account_id = request.GET['aid']
     accounts = Account.objects.filter(account_id=account_id)
-    if not accounts:
+    if not accounts.exists():
         return Response({'available': 1}, status=status.HTTP_200_OK)
     else:
         data = {'available': 0}
@@ -81,8 +83,8 @@ class RegistrationView(APIView):
         try:
             assert data['first_name'] and data['last_name'] and data['account_id'] and data['password'], KeyError()
             id_type: str = 'PHONE'
-            accounts = Account.objects.filter(Q(account_id=data['account_id']))
-            if accounts:
+            accounts = Account.objects.filter(account_id=data['account_id'])
+            if accounts.exists():
                 return Response({}, status=status.HTTP_403_FORBIDDEN)
             password = data['password']
             del data['password']
@@ -112,7 +114,7 @@ class ResetPassword(APIView):
         token_key = data['token']
         token_key = token_key[:len(token_key)-2]
         tokens: QuerySet = Token.objects.filter(key=token_key)
-        if not tokens:
+        if not tokens.exists():
             return Response({}, status=status.HTTP_404_NOT_FOUND)
         token: Token = tokens.first()
         user: Account = token.user
@@ -153,8 +155,8 @@ class FetchParticularHobby(APIView):
 
     def get(self, request):
         data: dict = request.GET
-        hobbies = Hobby.objects.filter(code_name=data['q'])
-        if hobbies:
+        hobbies: QuerySet = Hobby.objects.filter(code_name=data['q'])
+        if hobbies.exists():
             hobby = hobbies.first()
             serialized = HobbySerializer(hobby)
             return Response({'hobby': serialized.data}, status=status.HTTP_200_OK)
@@ -184,7 +186,7 @@ class GeneralMicroActionView(APIView):
     def get(self, request):
         user: Account = request.user
         posts: QuerySet = Post.objects.filter(post_id=request.GET['pid'])
-        if not posts:
+        if not posts.exists():
             return Response({}, status=status.HTTP_400_BAD_REQUEST)
         post_actions: PostActions = PostActions(user, posts.first())
         post_actions.micro_action(
@@ -196,7 +198,7 @@ class GeneralMicroActionView(APIView):
         data = json.loads(request.body)
         user: Account = request.user
         posts: QuerySet = Post.objects.filter(post_id=data['pid'])
-        if not posts:
+        if not posts.exists():
             return Response({}, status=status.HTTP_400_BAD_REQUEST)
 
         post_action:PostActions = PostActions(user, posts.first())
@@ -224,23 +226,6 @@ class ChangePassword(APIView):
         return Response({}, status=status.HTTP_403_FORBIDDEN)
 
 
-class ManageAssociation(APIView):
-    permission_classes = [AllowAny]
-    """
-    Must not deprecate, currently used in PostBox
-    """
-
-    def get(self, request):
-        if 'HTTP_AUTHORIZATION' in request.META:
-            token = request.META.get('HTTP_AUTHORIZATION')
-            if request.GET['action'] == 'follow' or request.GET['action'] == 'un_follow':
-                authenticated_association.delay(
-                    token, request.GET['fid'], follow=False if request.GET['action'] == 'un_follow' else True)
-            return Response({}, status=status.HTTP_200_OK)
-        else:
-            return Response({}, status=status.HTTP_403_FORBIDDEN)
-
-
 class OnePostView(APIView):
     permission_classes = [AllowAny]
 
@@ -251,12 +236,11 @@ class OnePostView(APIView):
 
     def get(self, request, pk):
         user = request.user
-        posts = Post.objects.filter(post_id=pk)
-        if not posts:
+        posts: QuerySet = Post.objects.filter(post_id=pk)
+        if not posts.exists():
             return Response({}, status=status.HTTP_404_NOT_FOUND)
         post = posts.first()
-        actions = ActionStore.objects.filter(post_id=post.post_id)
-        serialized = PostSerializer([post], user).render_with_action(actions)[0]
+        serialized = PostSerializer([post], user=user).render()[0]
         comments = UserPostComment.objects.filter(post_id=post.post_id).order_by('created_at')
         serialized_comments = CommentSerializer(comments)
         serialized['footer']['comments'] = serialized_comments.render()
@@ -284,7 +268,7 @@ class ThirdPartyProfileView(APIView):
         self.user = request.user
         self.valid_user = True if self.user else False
         accounts: QuerySet = Account.objects.filter(username=username)
-        if accounts:
+        if accounts.exists():
             account: Account = accounts.first()
             serialized = ProfileSerializer(account).data
             following = 0
@@ -311,7 +295,7 @@ class ProfilePosts(APIView):
 
     def get(self, request, username):
         posts: QuerySet = Post.objects.filter(account__username=username)
-        if not posts:
+        if not posts.exists():
             return Response({"posts": []}, status=status.HTTP_200_OK)
         serialized = [{"post_id": post.post_id, "hobby": post.hobby.code_name, "assets": post.assets} for post in posts]
         return Response({"posts": serialized}, status=status.HTTP_200_OK)
@@ -379,27 +363,18 @@ class PaginatedFeedView(GenericAPIView):
         user, valid = request.user, True
         if valid:
             trends = Trends(user)
-            self.queryset, actions = trends.get_posts(trends.extract_queryset(trends.extract_trending_in_hobby_user()))
-            # serialized_actions = ActionStoreSerializer(actions).data()
+            self.queryset = trends.extract_queryset(trends.extract_trending_in_hobby_user())
         else:
             self.queryset = self.trends.extract_queryset()
-        length_queryset = len(self.queryset)
+        length_queryset = self.queryset.count()
         page = self.paginate_queryset(self.queryset)
         if page is not None:
-            serialized = PostSerializer(page, user if valid else None)
-            if valid:
-                result = self.get_paginated_response(
-                    serialized.render_with_action(actions))
-            else:
-                result = self.get_paginated_response(serialized.render())
+            serialized = PostSerializer(page, user=user)
+            result: Response = self.get_paginated_response(serialized.render())
             data = result.data
         else:
-            serialized = PostSerializer(self.queryset, user if valid else None)
-            if valid:
-                data = serialized.render_with_action(actions)
-            else:
-                data = serialized.render()
-        # print(len(data))
+            serialized = PostSerializer(self.queryset, user=user)
+            data = serialized.render()
         if valid:
             response = {'meta': {'avatar': user.avatar, 'first_name': user.first_name}, "len": length_queryset,
                         'notification': 1 if user.new_notification else 0}
@@ -407,3 +382,38 @@ class PaginatedFeedView(GenericAPIView):
             return Response(response)
         data.update({"len": length_queryset})
         return Response(data, status=status.HTTP_200_OK)
+
+
+class PaginatedDiscovery(GenericAPIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    serializer_class = None
+    queryset = None
+    paginated_class = DiscoverPaginator
+
+    def get(self, request):
+        user = request.user
+        hobbies = []
+        if 'no_hobby' not in request.GET:
+            hobbies: QuerySet = RelevantHobby(user).arrange_relevant_hobbies()
+            serialized_hobbies: List[Dict[str, Any]] = [{"name": hobby.name, "code_name": hobby.code_name} for hobby in hobbies.iterator()]
+        hobby = None
+        if 'hobby' in request.GET:
+            hobby = request.GET['hobby']
+        discover: Discover = Discover(user=user, hobbies=hobby)
+        query = discover.hobby_query()
+        self.queryset = discover.extract_queryset(query)
+        page = self.paginate_queryset(self.queryset)
+        serialized = discover.rendered_data(self.queryset)
+        if page is None:
+            data = serialized
+        else:
+            result: Response = self.get_paginated_response(serialized)
+            data = result.data
+        return Response({
+            "posts": data,
+            "hobbies": serialized_hobbies
+        }, status=status.HTTP_200_OK)
+
+
+

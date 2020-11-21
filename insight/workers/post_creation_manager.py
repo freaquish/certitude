@@ -8,6 +8,8 @@ from insight.workers.analyzer import Analyzer
 class PostCreationManager(PostCreationInterface):
     post = None
     analyzer = None
+    hash_tags = []
+    a_tags = []
 
     def render_data(self) -> dict:
         hobbies: QuerySet = Hobby.objects.filter(code_name=self.map('hobby'))
@@ -17,13 +19,16 @@ class PostCreationManager(PostCreationInterface):
         if 'coords' in self.kwargs:
             self.user.insert_coords(json_to_coord(self.map('coords')))
             self.user.save()
-            data['coords'] = json_to_coord(self.map('coords'))
+            data['coordinates'] = json_to_coord(self.map('coords'))
+        self.hash_tags = data['hastags']
+        self.a_tags = data['atags']
+        del data['hastags']
+        del data['atags']
         data['created_at'] = get_ist()
         data['post_id'] = post_id_generator()
         data['account'] = self.user
         data['hobby'] = hobbies.first()
         data['is_global'] = False if self.map('is_global') == 0 else True
-        data['action_count'] = {'love': 0, 'view': 0, 'share': 0, 'comment': 0, 'up_vote': 0, 'save': 0, 'down_vote': 0}
         return data
 
     def create_post(self):
@@ -33,6 +38,13 @@ class PostCreationManager(PostCreationInterface):
         self.post: Post = Post.objects.create(**data)
         self.after_creation()
 
+    @staticmethod
+    def sanitize_tag(tag: str) -> str:
+        if '@' in tag:
+            return tag.replace('@', '')
+        elif '#' in tag:
+            return tag.replace('#', '')
+
     def create_tag(self):
         all_tags = self.post.atags + self.post.hastags
         if len(all_tags) == 0:
@@ -40,15 +52,20 @@ class PostCreationManager(PostCreationInterface):
         tag_query = None
         for tag in all_tags:
             if tag_query:
-                tag_query = tag_query | Q(tag=tag)
+                tag_query = tag_query | Q(tag=self.sanitize_tag(tag))
             else:
                 tag_query = Q(tag=tag)
         if tag_query:
             tags_in_db: QuerySet = Tags.objects.filter(tag_query).values_list('tag', flat=True)
-            tags_not_in_db = set(all_tags).difference(set(tags_in_db))
-            tags = Tags.objects.bulk_create(
-                [Tags(tag=tag, created_at=get_ist(), first_used=self.post.post_id) for tag in tags_not_in_db]
+            tags_not_in_db = set([self.sanitize_tag(tag) for tag in all_tags]).difference(set(tags_in_db))
+            Tags.objects.bulk_create(
+                [Tags(tag=self.sanitize_tag(tag), created_at=get_ist(), tag_typ=A_TAG if '@' in tag else A_TAG,
+                      first_used=self.post.post_id) for tag in tags_not_in_db]
             )
+            tags_in_db: QuerySet = Tags.objects.filter(tag_query)
+            # TODO: Watch Python Compilation
+            self.post.hash_tags.add(*tags_in_db.filter(tag_type=HASH))
+            self.post.a_tags.add(*tags_in_db.filter(tag_type=A_TAG))
 
     def after_creation(self):
         if self.post is None:

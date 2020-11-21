@@ -1,10 +1,10 @@
-from insight.leaderboard.main import LeaderBoardEngine, Q, timedelta
+from insight.leaderboard.main import LeaderboardEngine, Q, timedelta
 from insight.models import *
 
 
 def attest_score():
     hobbies = Hobby.objects.all()
-    leaderboard = LeaderBoardEngine()
+    leaderboard = LeaderboardEngine()
     for hobby in hobbies:
         for post in leaderboard.post_rank(hobby.code_name):
             scoreboard, created = Scoreboard.objects.get_or_create(account=post.account)
