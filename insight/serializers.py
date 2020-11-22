@@ -42,7 +42,7 @@ class PostSerializer:
         data["header"]["hobby_name"] = post.hobby.name
         data["header"]["hobby"] = post.hobby.code_name
         data["header"]["following"] = 0
-        if self.user and (post.account == self.user or self.post.account.account_id in self.account.following):
+        if self.user and (post.account == self.user or post.account.account_id in self.account.following):
             data['header']['following'] = 1
         data["caption"] = post.caption
         data["footer"]["action_map"] = {
