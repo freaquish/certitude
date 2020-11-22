@@ -1,7 +1,9 @@
 from insight.models import *
-from django.db.models import Q, QuerySet, F
+from django.db.models import Q, QuerySet, F, CharField, Value
+from django.db.models.functions import Concat
 from insight.serializers import *
 from fuzzywuzzy import fuzz
+from insight.database.postgres import Levenshtein
 
 """
  search atags : Post containing atags, Account, community, competition related with query
@@ -33,7 +35,8 @@ class SearchEngine:
             self.f_data: str = kwargs['f_data']
         else:
             self.f_data = None
-        self.hobby = QuerySet
+        hobbies: QuerySet = Hobby.objects.all()
+        self.hobby = {hobby.code_name: hobby.name for hobby in hobbies.iterator()}
 
     def search_account_query(self, contains= False):
         if ' ' in self.query:
@@ -123,16 +126,13 @@ class SearchEngine:
         }
 
     def serialise_account(self, account: Account):
-        hobbies: QuerySet = self.hobby.filter(code_name=account.primary_hobby)
-        hobby = None
-        if hobbies:
-            hobby: Hobby = hobbies.first()
+
         associated = self.user_in_association(account)
         return {
             "account_id": account.account_id,
             "name": f'{account.first_name} {account.last_name}',
             "username": account.username,
-            "hobby": hobby.name if hobby else '',
+            "hobby": self.hobby.get(account.primary_hobby),
             "following": associated[0],
             "friend": associated[1],
             "avatar": account.avatar,
@@ -148,25 +148,23 @@ class SearchEngine:
         }
 
     def search_tags(self):
-        tags = Tags.objects.filter(self.search_tag_query())
-        return [self.serialise_tag(tag) for tag in sorted(tags, key=lambda tag_obj: fuzz.ratio(self.query,
-                                                                                               tag_obj.tag),
-                                                          reverse=True)]
+        tags: QuerySet = Tags.objects.filter(self.search_tag_query()).annotate(tag_dist=Levenshtein(F('tag'), self.query))\
+            .order_by('-tag_dist')
+        return [self.serialise_tag(tag) for tag in tags.iterator()]
 
     def search_users(self):
         self.hobby = Hobby.objects.all()
-        accounts = Account.objects.filter(self.search_account_query()).exclude(self.exclusion_user_query())
+        accounts: QuerySet = Account.objects.filter(self.search_account_query()).exclude(self.exclusion_user_query())
 
-        if len(accounts) == 0:
-            accounts = Account.objects.filter(self.search_account_query(contains=True)) \
-                .exclude(self.exclusion_user_query())
+        if accounts.exists():
+            accounts: QuerySet = Account.objects.filter(self.search_account_query(contains=True)) \
+                .exclude(self.exclusion_user_query()).annotate(u_dist=Levenshtein(F('username'), self.query),
+                                                               name=Concat(F('first_name'), Value(' '), F('last_name'),
+                                                                           output_field=CharField()),
+                                                               name_dist=Levenshtein(F('name'), self.query)
+                                                               ).order_by('-name_dist', '-u_dist')
 
-        def scoring_object(user: Account):
-            return fuzz.ratio(self.query, user.username), fuzz.ratio(self.query, user.first_name), \
-                   fuzz.ratio(self.query, user.last_name)
-
-        return [self.serialise_account(user) for user in
-                sorted(accounts, key=lambda user_obj: scoring_object(user_obj), reverse=True)]
+        return [self.serialise_account(user) for user in accounts.iterator()]
 
     def search_hobby(self):
         hobbies = Hobby.objects.filter(self.search_hobby_query())

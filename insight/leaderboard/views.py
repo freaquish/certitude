@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from insight.leaderboard.main import LeaderboardEngine
 from rest_framework.authentication import TokenAuthentication
 from insight.serializers import HobbySerializer
+from insight.workers.hobby import RelevantHobby
 
 
 class LeaderboardView(APIView):
@@ -19,8 +20,6 @@ class LeaderboardView(APIView):
     def get(self, request):
         user: Account = request.user
         leaderboard = LeaderboardEngine(user=user)
-        hobby = None
-        scoreboards = []
         sort = 'net_score'
         if 'sort' in request.GET:
             sort = request.GET['sort']
@@ -28,17 +27,18 @@ class LeaderboardView(APIView):
         if 'hobby' in request.GET and request.GET['hobby'] != 'all':
             hobby = request.GET['hobby']
         scoreboards = leaderboard.hobby_rank_global(hobby=hobby, sort=sort)
-        serialise_hobby = {}
+        serialise_hobby = []
         if 'no_hobby' not in request.GET:
-            hobbies = Hobby.objects.filter(last_scoreboard__gte=get_ist())
-            serialise_hobby = HobbySerializer(hobbies, many=True).data
+            r_hobbies = RelevantHobby(user)
+            serialise_hobby = HobbySerializer(r_hobbies.arrange_relevant_hobbies(only_exist=True), many=True).data
+
         if 'search' in request.GET:
             serialised_scoreboards = leaderboard.get_ranked_user(scoreboards, user_string=request.GET['search'])
             return Response({"hobbies": serialise_hobby, "scoreboards": serialised_scoreboards}, status=status.HTTP_200_OK)
 
         # TODO: Paginator in second edition
         serialized_scoreboards = []
-        for index, scoreboard in enumerate(scoreboards):
-            score_card = leaderboard.serialize_hobby_rank(scoreboard, index, hobby=hobby)
+        for scoreboard in scoreboards.iterator():
+            score_card = leaderboard.serialize_hobby_rank(scoreboard, hobby=hobby)
             serialized_scoreboards.append(score_card)
         return Response({"hobbies": serialise_hobby, "scoreboards": serialized_scoreboards}, status=status.HTTP_200_OK)

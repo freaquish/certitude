@@ -56,20 +56,15 @@ class Account(AbstractBaseUser, PermissionsMixin):
     activity_coords = JSONField(default=dict)
     avatar = models.TextField()
     places = ArrayField(models.TextField(), default=list)
-    influencer = models.BooleanField(default=False)
-    influencing_hobby = models.CharField(max_length=20, default='')
     hobby_map = JSONField(default=dict)  # {"code_name": E(action)}
     primary_hobby = models.CharField(max_length=20, default='')
     primary_weight = models.DecimalField(
         max_digits=4, decimal_places=2, default=0.00)
     follower_count = models.IntegerField(default=0)
     following_count = models.IntegerField(default=0)
-    saves = ArrayField(models.CharField(max_length=30), default=list)
-    friend_count = models.IntegerField(default=0)
-    friend_requests = ArrayField(models.CharField(max_length=50), default=list)
+    # saves = ArrayField(models.CharField(max_length=30), default=list)
     description = models.TextField()
     following = ArrayField(models.CharField(max_length=30), default=list)
-    friend = ArrayField(models.CharField(max_length=30), default=list)
     current_coord = gis_models.PointField(
         default=Point(0, 0, srid=4326), srid=4326)
     new_notification = models.BooleanField(default=False)
@@ -101,7 +96,6 @@ class Hobby(models.Model):
     editors = ArrayField(models.CharField(max_length=30), default=list)
     limits = JSONField(default=dict)
     weight = models.DecimalField(max_digits=5, decimal_places=3, default=0.0)
-    last_scoreboard = models.DateField(default=get_ist())
 
 
 class HobbyReport(models.Model):
@@ -118,24 +112,52 @@ class HobbyReport(models.Model):
     competition_hosted = models.IntegerField(default=0)
 
 
-class Post(models.Model):
-    post_id = models.CharField(max_length=22, primary_key=True, default='')
-    username = models.CharField(max_length=30, default='')
+HASH = 'HASH'
+A_TAG = 'A_TAG'
+
+
+class Tags(models.Model):
+    tag = models.TextField(primary_key=True)
+    created_at = models.DateTimeField(default=get_ist())
+    tag_type = models.CharField(max_length=10, default=HASH)
+    first_used = models.CharField(max_length=22, default='')
+
+
+class UserPostComment(models.Model):
+    post_id = models.CharField(max_length=22, default='')
     account = models.ForeignKey(
         Account, on_delete=models.CASCADE, default='account_id')
-    editor = models.CharField(max_length=14)
+    comment = models.TextField()
+    created_at = models.DateTimeField(default=get_ist())
+    count = models.IntegerField(default=0)
+
+
+class Post(models.Model):
+    post_id = models.CharField(max_length=22, primary_key=True, default='')
+    account = models.ForeignKey(
+        Account, on_delete=models.CASCADE, default='account_id')
     hobby = models.ForeignKey(Hobby, on_delete=models.CASCADE, default='')
     assets = JSONField(default=dict)
     caption = models.TextField()
     hastags = ArrayField(models.CharField(max_length=20), default=list)
-    last_activity_on = models.DateField(default=get_ist())
     atags = ArrayField(models.CharField(max_length=20), default=list)
-    coords = gis_models.PointField(
+    hash_tags = models.ManyToManyField(Tags, blank=True, related_name='hash_tags_post', default='')
+    a_tags = models.ManyToManyField(Tags, blank=True, related_name='a_tags_post', default='')
+    coordinates = gis_models.PointField(
         Point(0, 0, srid=4326), srid=4326, blank=True, null=True)
     action_count = JSONField(default=dict)
+    views = models.ManyToManyField(Account, blank=True, related_name='views_post', default='')
+    loves = models.ManyToManyField(Account, blank=True, related_name='loves_post', default='')
+    shares = models.ManyToManyField(Account, blank=True, related_name='shares_post', default='')
+    up_votes = models.ManyToManyField(Account, blank=True, related_name='up_votes_post', default='')
+    down_votes = models.ManyToManyField(Account, blank=True, related_name='down_votes_post', default='')
+    comments = models.ManyToManyField(UserPostComment, blank=True, related_name='comments_post', default='')
+    score = models.DecimalField(max_digits=7, decimal_places=4, default=0.0)
+    freshness_score = models.DecimalField(max_digits=7, decimal_places=4, default=0.0)
+    net_score = models.DecimalField(max_digits=7, decimal_places=4, default=0.0)
+    last_modified = models.DateTimeField(default=get_ist())
     created_at = models.DateTimeField(default=get_ist())
     rank = models.IntegerField(default=0)
-    score = models.DecimalField(max_digits=7, decimal_places=3, default=0.0)
     is_global = models.BooleanField(default=True)
 
 
@@ -159,58 +181,18 @@ class ActionStore(models.Model):
 
 
 class Notification(models.Model):
-    noti_id = models.CharField(max_length=35, primary_key=True, default='')
-    type = models.CharField(max_length=5, default='ALERT')
-    meta = JSONField(default=dict)
-    header = models.TextField()
-    created_at = models.DateTimeField(default=get_ist())
-    body = models.TextField()
-    to = models.ForeignKey(
-        Account, on_delete=models.CASCADE, default='account_id')
-    read = models.BooleanField(default=False)
-    used = models.BooleanField(default=False)
-
-
-class Leaderboard(models.Model):
-    duration_type = models.CharField(max_length=8, default='weekly')
-    start_date = models.DateField(default=get_ist_date())
-    end_date = models.DateField(default=get_ist_date())
-    hobby = models.CharField(max_length=20, default='')
-    hobby_name = models.CharField(max_length=30, default='')
-    # rank: {account_id,score,name,influencer}
-    rank_list = JSONField(default=dict)
-
-
-class Tags(models.Model):
-    tag = models.TextField(primary_key=True)
-    created_at = models.DateTimeField(default=get_ist())
-    first_used = models.CharField(max_length=22, default='')
+    receivers = models.ManyToManyField(Account, blank=False, related_name='notification_receivers', default='')
+    created = models.DateTimeField(default=get_ist())
+    read_at = models.DateTimeField(default=get_ist())
+    avatar = models.TextField(default='')
+    header = models.TextField(default='')
+    body = models.TextField(default='')
 
 
 class Places(models.Model):
     place_name = models.TextField()
     city = models.TextField()
-    coords = gis_models.PointField(default=Point(0, 0), srid=4326)
-
-
-class RankBadge(models.Model):
-    competition_name = models.TextField()
-    created_at = models.DateTimeField(default=get_ist())
-    hobby = models.ForeignKey(Hobby, on_delete=models.CASCADE, default='')
-    account = models.ForeignKey(
-        Account, on_delete=models.CASCADE, default='account_id')
-    total = models.IntegerField(default=0)
-    rank = models.IntegerField(default=0)
-    score = models.DecimalField(max_digits=7, decimal_places=3, default=0.0)
-
-
-class UserPostComment(models.Model):
-    post_id = models.CharField(max_length=22, default='')
-    account = models.ForeignKey(
-        Account, on_delete=models.CASCADE, default='account_id')
-    comment = models.TextField()
-    created_at = models.DateTimeField(default=get_ist())
-    count = models.IntegerField(default=0)
+    coordinates = gis_models.PointField(default=Point(0, 0), srid=4326)
 
 
 """
@@ -220,107 +202,16 @@ class UserPostComment(models.Model):
 """
 
 
-class ScorePost(models.Model):
-    score = models.DecimalField(max_digits=7, decimal_places=3, default=0.0)
-    freshness_score = models.DecimalField(max_digits=9, decimal_places=7, default=0.0)
-    net_score = models.DecimalField(max_digits=7, decimal_places=3, default=0.0)
-    rank = models.IntegerField(default=0)
-    post = models.ForeignKey(Post, on_delete=models.CASCADE, default='', db_index=True)
-    created_at = models.DateTimeField(default=get_ist())
-    last_modified = models.DateTimeField(default=get_ist())
-
-
 class Scoreboard(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     created_at = models.DateField(default=get_ist_date())
     original_creation = models.DateTimeField(default=get_ist())
     expires_on = models.DateField(default=get_ist_date())
-    hobby_scores = JSONField(default=dict)
-    views = models.IntegerField(default=0)
-    loves = models.IntegerField(default=0)
-    shares = models.IntegerField(default=0)
-    up_votes = models.IntegerField(default=0)
-    down_votes = models.IntegerField(default=0)
+    posts = models.ManyToManyField(Post, blank=True, related_name='scoreboard_posts', default='')
     retention = models.DecimalField(max_digits=9, decimal_places=5, default=0.0)
-    net_score = models.DecimalField(
-        default=0.0, max_digits=8, decimal_places=4)
-    rank = models.IntegerField(default=0)
 
 
-class Community(models.Model):
-    community_id = models.CharField(
-        max_length=26, primary_key=True, default='')
-    name = models.TextField()
-    tag = models.CharField(max_length=50, unique=True)
-    description = models.TextField()
-    hobbies = ArrayField(models.CharField(max_length=30), default=list)
-    image = models.TextField()
-    created_at = models.DateTimeField(default=get_ist())
 
-    def edit(self, **data):
-        for key in data.keys():
-            self.__dict__[key] = data[key]
-        self.save()
-
-
-class CommunityMember(models.Model):
-    created_at = models.DateTimeField(default=get_ist())
-    community = models.ForeignKey(
-        Community, on_delete=models.CASCADE, related_name='community_member_community', default='')
-    account = models.ForeignKey(
-        Account, on_delete=models.CASCADE, default='account_id', related_name='community_member_account')
-    is_team_member = models.BooleanField(default=False)
-    is_team_head = models.BooleanField(default=False)
-
-
-class TeamMember(models.Model):
-    account = models.ForeignKey(
-        Account, on_delete=models.CASCADE, default='account_id', related_name='team_account')
-    assigned_at = models.DateTimeField(default=get_ist())
-    position = models.TextField()
-    description = models.TextField()
-    is_head = models.BooleanField(default=False)
-    community = models.ForeignKey(
-        Community, on_delete=models.CASCADE, related_name='team_community', default='')
-
-    def edit(self, **data):
-        for key in data.keys():
-            self.__dict__[key] = data[key]
-        self.save()
-
-
-class Competition(models.Model):
-    competition_id = models.CharField(max_length=36, primary_key=True)
-    community = models.ForeignKey(
-        Community, on_delete=models.CASCADE, default='')
-    name = models.TextField()
-    tag = models.CharField(max_length=50, unique=True)
-    description = models.TextField()
-    competitions_banner = models.TextField()
-    start_at = models.DateTimeField(default=get_ist())
-    end_at = models.DateTimeField(default=get_ist())
-    hobbies = ArrayField(models.CharField(max_length=30), default=list)
-    is_global = models.BooleanField(default=False)
-    result_date = models.DateTimeField(default=get_ist())
-    is_unique_post = models.BooleanField(default=False)
-    submission_per_user = models.IntegerField(default=0)
-    rules_policy = models.TextField()
-    number_post_submitted = models.IntegerField(default=0)
-
-
-class CommunityPost(models.Model):
-    post = models.ForeignKey(
-        Post, on_delete=models.CASCADE, default='', related_name='community_post_post')
-    community = models.ForeignKey(
-        Community, on_delete=models.CASCADE, default='', related_name='community_post_community')
-    created_at = models.DateTimeField(default=get_ist())
-
-
-class CompetitionPost(models.Model):
-    post = models.ForeignKey(Post, on_delete=models.CASCADE, default='', related_name='competition_post_post')
-    competition = models.ForeignKey(Competition, on_delete=models.CASCADE, default='',
-                                    related_name='competition_post_competition')
-    created_at = models.DateTimeField(default=get_ist())
 
 
 """

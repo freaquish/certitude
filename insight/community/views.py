@@ -41,7 +41,7 @@ class GetCommunity(APIView):
             # Fetch all community of the user
             communities: QuerySet = CommunityMember.objects.filter(account=user)
             serialized_data = []
-            if communities:
+            if communities.exists():
                 serialized_data = CommunityCardSerializer(communities).render()
             return Response({"communities": serialized_data}, status=status.HTTP_200_OK)
         if 'about' in request.GET:

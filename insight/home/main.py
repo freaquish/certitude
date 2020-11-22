@@ -1,4 +1,4 @@
-from insight.models import Post, ActionStore, Account, ScorePost, UserPostComment
+from insight.models import Post, ActionStore, Account, UserPostComment
 from celery import shared_task
 from insight.workers.analyzer import Analyzer
 from django.db.models import QuerySet
@@ -27,7 +27,7 @@ class PostActions:
 
     """
     Serious Improvement required, suppose user base grown to 10 million and 5 million post
-    recorded 1000 actions each, then 1000 * 5 million
+    recorded 1000 home each, then 1000 * 5 million
     total stores = 5000000000 stores
     select query will be extremely slow, we need to index the account_id and post_id
     needed to introduce some serious arch.
@@ -35,44 +35,18 @@ class PostActions:
     
     The write should be in go
     """
-    def commit_action(self, action):
+    def commit_action(self, action, user_comment: UserPostComment = None):
         if action == 'viewed':
             return False
-        action_store, created = ActionStore.objects.get_or_create(
-            account_id=self.user.account_id, post_id=self.post.post_id
-        )
-        if action == 'view' and action_store.viewed:
-            return False
-        elif action == 'view':
-            action_store.viewed = True
-            action_store.viewed_at = get_ist()
-            self.increment('view')
+        if action == 'view':
+            self.post.views.add(self.user)
         elif action == 'love' or action == 'un_love':
-            action_store.loved = not action_store.loved
-            action_store.loved_at = get_ist()
-            if action_store.loved:
-                self.increment('love')
-            else:
-                self.decrement('love')
+            self.post.loves.add(self.user)
         elif action == 'share':
-            action_store.shared = True
-            self.increment('share')
-        elif action == 'comment':
-            action_store.commented = True
-            self.increment('comment')
-        action_store.save()
+            self.post.shares.add(self.user)
+        elif action == 'comment' and user_comment:
+            self.post.comments.add(user_comment)
         return True
-
-    def increment(self, key):
-        self.post.action_count[key] += 1
-        self.post.save()
-
-    def decrement(self, key):
-        if self.post.action_count[key] > 0:
-            self.post.action_count[key] -= 1
-        else:
-            self.post.action_count[key] = 0
-        self.post.save()
 
     def micro_action(self, action, val='', for_test: bool = False):
         weight = 0.0

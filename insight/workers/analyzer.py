@@ -1,15 +1,16 @@
 """
  Analyzer
  API for analyzing user activity in relation with hobbies
- API will receive signals from actions such as create , view, love, share, comment or follow
+ API will receive signals from home such as create , view, love, share, comment or follow
  API can manage hobby_map and primary hobby of user for personalized experience
 """
 import math
 from insight.models import *
 from insight.workers.interface import AnalyzerInterface
 from celery import shared_task
-from insight.utils import next_sunday
+from insight.utils import next_sunday, last_monday
 from django.db.models import Q, QuerySet
+from django.db.models.functions import Exp
 from math import log
 
 
@@ -19,30 +20,17 @@ class Analyzer(AnalyzerInterface):
     @staticmethod
     def calculate_freshness_score(post: Post) -> float:
         diff = get_ist() - post.created_at
-        return 2 * math.exp(-diff.days/4) + 0.8
+        return 2 * math.exp(-diff.days / 4) + 0.8
 
     @staticmethod
     def audit_post_counts(post: Post, after=None) -> dict:
-        # TODO: Heavy Optimization is required when
-        if after:
-            action_stores: QuerySet = ActionStore.objects.filter(Q(post_id=post.post_id) & Q(viewed_at__gte=after)
-                                                                 & Q(viewed=True))
-        else:
-            action_stores: QuerySet = ActionStore.objects.filter(Q(post_id=post.post_id) & Q(viewed=True))
-        audits = {'love': 0, 'view': 0, 'comment': 0, 'share': 0, 'up_vote': 0, 'down_vote': 0}
-        for action_store in action_stores:
-            audits['love'] += 1 if action_store.loved else 0
-            audits['view'] += 1
-            audits['comment'] += 1 if action_store.commented else 0
-            audits['share'] += 1 if action_store.shared else 0
-            audits['up_vote'] += 1 if action_store.up_voted else 0
-            audits['down_vote'] += 1 if action_store.down_voted else 0
-
+        audits = {'love': post.loves.count(), 'view': post.views.count(), 'comment': post.comments.count(),
+                  'share': post.shares.count(), 'up_vote': post.up_votes.count(), 'down_vote': post.down_votes.count()}
         return audits
 
     def manage_hobby_report(self, hobby: str, **reports) -> HobbyReport:
         hobbies: QuerySet = Hobby.objects.filter(code_name=hobby)
-        if not hobbies:
+        if not hobbies.exists():
             return None
         hobby: Hobby = hobbies.first()
         hobby_report, created = HobbyReport.objects.get_or_create(account=self.user, hobby=hobby)
@@ -60,59 +48,31 @@ class Analyzer(AnalyzerInterface):
         return score * 0.01
 
     def manage_score_post(self, post: Post, is_new: bool = False, after: datetime = None):
-        if is_new:
-            score_post = ScorePost.objects.create(post=post, created_at=get_ist(), last_modified=get_ist())
-        else:
-            score_post, created = ScorePost.objects.get_or_create(post=post)
-        score_post.freshness_score = self.calculate_freshness_score(post)
-        if self.counts is None:
-            self.counts = self.audit_post_counts(post, after)
-        score_post.score = self.score_post(self.counts)
-        score_post.net_score = score_post.freshness_score + score_post.score
-        score_post.last_modified = get_ist()
-        score_post.save()
-        return score_post
+        post.freshness_score = self.calculate_freshness_score(post)
+        post.score = self.score_post(self.audit_post_counts(post))
+        post.net_score = post.freshness_score + post.score
+        post.last_modified = get_ist()
+        post.save()
+        return post
 
     def manage_scoreboard(self, post: Post, created: bool = False, **actions):
-        scoreboards: QuerySet = Scoreboard.objects.filter(Q(account=post.account) & Q(expires_on__gte=get_ist()))\
-            .select_related('account')
-        if not scoreboards:
-            scoreboard: Scoreboard = Scoreboard.objects.create(account=post.account, created_at=get_ist(),
-                                                               original_creation=get_ist(),
-                                                               expires_on=next_sunday(get_ist()))
+        scoreboards: QuerySet = Scoreboard.objects.filter(Q(account=post.account) & Q(expires_on__gte=get_ist()) &
+                                                          Q(created_at__lte=get_ist()))
+        if not scoreboards.exists():
+            scoreboard: Scoreboard = Scoreboard.objects.create(account=post.account, original_creation=get_ist(),
+                                                               created_at=get_ist(),
+                                                               expires_on=next_sunday(
+                                                                   get_ist()) if get_ist().weekday() < 6 else get_ist())
         else:
             scoreboard: Scoreboard = scoreboards.first()
-        scores = scoreboard.hobby_scores
-        score_posts = ScorePost.objects.filter(post=post)
-        if not score_posts:
-            return None
-        score_post: ScorePost = score_posts.first()
-        if not post.hobby.code_name in scores:
-            scores[post.hobby.code_name] = 0
-        scores[post.hobby.code_name] += float(score_post.net_score)
-        if created:
-            scores = {k: float(v) + self.WEIGHT_CREATE for k, v in scores.items()}
-        if len(actions):
-            for action, value in actions.items():
-                scoreboard.__dict__[f'{action}s'] += value
-        self.user.hobby_map = scores
-        self.user.primary_hobby = max(scores, key=lambda hobby: scores[hobby])
-        self.user.save()
-        scoreboard.hobby_scores = scores
-        scoreboard.created_at = get_ist()
-        scoreboard.expires_on = next_sunday(get_ist())
-        hobbies: QuerySet = Hobby.objects.filter(code_name__in=[hobby for hobby in scores.keys()])
-        hobbies.update(last_scoreboard=next_sunday(get_ist()))
-        scoreboard.net_score = sum([points for points in scoreboard.hobby_scores.values()])
-        scoreboard.save()
+        scoreboard.posts.add(post)
+
         return scoreboard
 
     def user_activity(self, scoreboard: Scoreboard):
-        posts: QuerySet = Post.objects.filter(Q(account=scoreboard.account) &
-            Q(created_at__gte=scoreboard.created_at) & Q(created_at__lte=scoreboard.expires_on)
-        )
-        if posts:
-            number: int = len(posts)
+        posts: QuerySet = scoreboard.posts.all()
+        if posts.exists():
+            number: int = posts.count()
             avg_number_in_week: float = number / 4  # minimum required posts are 4 in a week
             if avg_number_in_week > 1:
                 scoreboard.retention = log(avg_number_in_week)
@@ -124,7 +84,7 @@ class Analyzer(AnalyzerInterface):
     def background_task(user_id: str, post_id: str, created: bool = False, *count, **kwargs) -> None:
         users: QuerySet = Account.objects.filter(account_id=user_id)
         posts: QuerySet = Post.objects.filter(post_id=post_id)
-        if len(users) == 0 or len(posts) == 0 :
+        if users.count() == 0 or posts.count() == 0:
             return None
         user = users.first()
         post = posts.first()
@@ -132,8 +92,8 @@ class Analyzer(AnalyzerInterface):
         if 'hobby' in kwargs and 'report' in kwargs:
             analyzer.manage_hobby_report(kwargs['hobby'], **kwargs['report'])
         actions = {}
-        if 'actions' in kwargs:
-            actions = kwargs['actions']
+        if 'home' in kwargs:
+            actions = kwargs['home']
         analyzer.user_activity(analyzer.manage_scoreboard(post, **actions))
         return None
 

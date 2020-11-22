@@ -1,7 +1,7 @@
 from rest_framework.test import APITestCase
 from insight.leaderboard.main import *
 from insight.workers.post_creation_manager import PostCreationManager, Analyzer
-from insight.actions.main import PostActions
+from insight.home.main import PostActions
 from insight.tools.test_utils import cases_json
 
 

@@ -1,0 +1,13 @@
+Database:
+  Postgres:
+    Extensions:
+      - Postgis
+      - fuzzystrmatch
+  Mongo
+
+
+Celery:
+  - Daemon setup
+
+Gunicorn:
+  - Daemon setup
