@@ -4,7 +4,6 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 from django.db.models import QuerySet
 from django.db.models import Q
-from insight.models import Account, Notification
 from insight.models import *
 from rest_framework.authtoken.models import Token
 from rest_framework.authentication import TokenAuthentication

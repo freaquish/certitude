@@ -1,6 +1,5 @@
-from insight.models import Account, Notification
+from insight.models import Account
 from django.db.models import Q
-from insight.notifications.manager import NotificationManager
 from insight.association.serializer import FriendListSerializer, FollowSerializer
 
 # TODO: Migrate Friends and Followers on models based view
@@ -29,17 +28,6 @@ class AssociationEngine:
         target.follower_count -= 1
         target.save()
         self.user.save()
-
-    def friend_association_manager(self, target: Account):
-        if target.account_id in self.user.friend:
-            self.remove_friend(target)
-        else:
-            notifications = Notification.objects.filter(
-                Q(to=target) & Q(Q(header=self.user.username) & Q(type='REQU')))
-            if not notifications:
-                notification_manager = NotificationManager()
-                notification_manager.create_friend_request(
-                    to=target, from_=self.user)
 
     def follow_association_manager(self, target: Account):
         if target.account_id == self.user.account_id:

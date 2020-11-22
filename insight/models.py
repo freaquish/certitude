@@ -180,15 +180,6 @@ class ActionStore(models.Model):
         self.save()
 
 
-class Notification(models.Model):
-    receivers = models.ManyToManyField(Account, blank=False, related_name='notification_receivers', default='')
-    created = models.DateTimeField(default=get_ist())
-    read_at = models.DateTimeField(default=get_ist())
-    avatar = models.TextField(default='')
-    header = models.TextField(default='')
-    body = models.TextField(default='')
-
-
 class Places(models.Model):
     place_name = models.TextField()
     city = models.TextField()
