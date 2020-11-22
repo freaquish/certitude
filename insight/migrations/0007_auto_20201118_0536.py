@@ -54,6 +54,10 @@ class Migration(migrations.Migration):
             model_name='post',
             name='last_activity_on',
         ),
+        migrations.RemoveField(
+            model_name='post',
+            name='score',
+        ),
         migrations.AddField(
             model_name='post',
             name='a_tags',
@@ -87,6 +91,11 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='post',
             name='net_score',
+            field=models.DecimalField(decimal_places=4, default=0.0, max_digits=7),
+        ),
+        migrations.AddField(
+            model_name='post',
+            name='score',
             field=models.DecimalField(decimal_places=4, default=0.0, max_digits=7),
         ),
         migrations.AddField(
@@ -173,11 +182,6 @@ class Migration(migrations.Migration):
             model_name='post',
             name='created_at',
             field=models.DateTimeField(default=datetime.datetime(2020, 11, 18, 5, 36, 48, 960970, tzinfo=utc)),
-        ),
-        migrations.AlterField(
-            model_name='post',
-            name='score',
-            field=models.DecimalField(decimal_places=4, default=0.0, max_digits=7),
         ),
         migrations.AlterField(
             model_name='scoreboard',
