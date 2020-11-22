@@ -152,7 +152,7 @@ class Post(models.Model):
     up_votes = models.ManyToManyField(Account, blank=True, related_name='up_votes_post', default='')
     down_votes = models.ManyToManyField(Account, blank=True, related_name='down_votes_post', default='')
     comments = models.ManyToManyField(UserPostComment, blank=True, related_name='comments_post', default='')
-    score = models.DecimalField(max_digits=7, decimal_places=4, default=0.0)
+    # score = models.DecimalField(max_digits=7, decimal_places=4, default=0.0)
     freshness_score = models.DecimalField(max_digits=7, decimal_places=4, default=0.0)
     net_score = models.DecimalField(max_digits=7, decimal_places=4, default=0.0)
     last_modified = models.DateTimeField(default=get_ist())
