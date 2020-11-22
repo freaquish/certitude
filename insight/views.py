@@ -405,15 +405,14 @@ class PaginatedDiscovery(GenericAPIView):
         self.queryset = discover.extract_queryset(query)
         page = self.paginate_queryset(self.queryset)
         serialized = discover.rendered_data(self.queryset)
+        response: Response = Response({"hobbies": serialized_hobbies}, status=status.HTTP_200_OK)
         if page is None:
             data = serialized
+            response.data.update({"posts": data})
         else:
             result: Response = self.get_paginated_response(serialized)
-            data = result.data
-        return Response({
-            "posts": data,
-            "hobbies": serialized_hobbies
-        }, status=status.HTTP_200_OK)
-
+            result.data.update({"hobbies", serialized_hobbies})
+            response = result
+        return response
 
 
