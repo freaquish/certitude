@@ -43,7 +43,7 @@ class Trends(TrendsInterface):
             , output_field=DecimalField()
         )
         annote = {'current_score': score_expression}
-        if query:
+        if query is not None:
             posts: QuerySet = models.Post.objects.select_related("account", "hobby").prefetch_related('views', 'loves',
                                                                                                       'shares'). \
                 filter(query[0]).annotate(**annote)
