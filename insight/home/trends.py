@@ -22,7 +22,7 @@ class Trends(TrendsInterface):
                 hobby_query = hobby_query | query
             else:
                 hobby_query = query
-        if hobby_query:
+        if hobby_query is not None:
             hobbies: QuerySet = models.Hobby.objects.filter(hobby_query).values_list('code_name', flat=True)
             required_hobbies = None
             for hobby in hobbies:
@@ -30,23 +30,23 @@ class Trends(TrendsInterface):
                     required_hobbies = required_hobbies | Q(hobby__code_name=hobby)
                 else:
                     required_hobbies = Q(hobby__code_name=hobby)
-            if required_hobbies:
+            if required_hobbies is not None:
                 return required_hobbies
             return None
         return None
 
-    def extract_queryset(self, *query: Q) -> QuerySet:
+    def extract_queryset(self, query: Q) -> QuerySet:
         score_expression: ExpressionWrapper = ExpressionWrapper(
             Exp(ExpressionWrapper(Value(1 / 4) * ExtractDay('created_at') - ExtractDay(Now()) + Value(0.8),
                                   output_field=DecimalField())) +
             ExpressionWrapper(Value(0.01) * F('score'), output_field=DecimalField())
             , output_field=DecimalField()
         )
-        annote = {'current_score': score_expression}
-        if query is not None:
+        annotation = {'current_score': score_expression}
+        if query:
             posts: QuerySet = models.Post.objects.select_related("account", "hobby").prefetch_related('views', 'loves',
                                                                                                       'shares'). \
-                filter(query[0]).annotate(**annote)
+                filter(query).annotate(**annotation)
         else:
-            posts: QuerySet = models.Post.objects.annotate(**annote)
+            posts: QuerySet = models.Post.objects.annotate(**annotation)
         return posts
