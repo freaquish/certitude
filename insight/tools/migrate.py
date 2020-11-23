@@ -48,6 +48,40 @@ def migrate_hobby_reports():
                                                                     )
 
 
+def migrate_tags():
+    posts: QuerySet = Post.objects.prefetch_related('hash_tags', 'a_tags').annotate(h_tags=Count('hash_tags'), an_tags=Count('a_tags')).filter(Q(h_tags__gt=0) | Q(an_tags__gt=0))
+    for post in posts.iterator():
+        for hash_tags in post.hash_tags.all():
+            tag = Tags(
+                tag=hash_tags.tag.replace('#', ''),
+                tag_type=HASH,
+                created_at=get_ist()
+            )
+            tag.save()
+            post.hash_tags.add(tag)
+        for a_tag in post.a_tags.all():
+            tag = Tags(
+                tag=a_tag.tag.replace('@', ''),
+                tag_type=A_TAG,
+                created_at=get_ist()
+            )
+            tag.save()
+            post.a_tags.add(tag)
+
+
+def sanitize_tags():
+    tags: QuerySet = Tags.objects.filter(Q(tag__startswith='#') | Q(tag__startswith='@'))
+    for tag in tags.iterator():
+        query = {f'{"hash_tags__tag" if "#" in tag.tag else "a_tags__tag"}': tag.tag}
+        posts: QuerySet = Post.objects.filter(**query)
+        for post in posts.iterator():
+            if '#' in tag.tag:
+                post.hash_tags.remove(tag)
+            else:
+                post.a_tags.remove(tag)
+    tags.delete()
+
+
 
 
 

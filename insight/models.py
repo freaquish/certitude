@@ -116,11 +116,32 @@ HASH = 'HASH'
 A_TAG = 'A_TAG'
 
 
+class TagsManager(models.Manager):
+
+    def create(self, **kwargs):
+        tag_type: str = ''
+        tag: str = kwargs['tag']
+        if '#' in kwargs['tag']:
+            tag_type = HASH
+            tag = kwargs['tag'].replace('#', '')
+        elif '@' in kwargs['tag']:
+            tag_type = A_TAG
+            tag = kwargs['tag'].replace('@', '')
+        kwargs['tag'] = tag
+        kwargs['tag_type'] = tag_type
+        kwargs['created_at'] = get_ist()
+        tag = self.model(**kwargs)
+        tag.save()
+        return tag
+
+
 class Tags(models.Model):
     tag = models.TextField(primary_key=True)
     created_at = models.DateTimeField(default=get_ist())
     tag_type = models.CharField(max_length=10, default=HASH)
     first_used = models.CharField(max_length=22, default='')
+
+    objects = TagsManager()
 
 
 class UserPostComment(models.Model):

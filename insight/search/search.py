@@ -36,7 +36,7 @@ class SearchEngine:
         else:
             self.f_data = None
         hobbies: QuerySet = Hobby.objects.all()
-        self.hobby = {hobby.code_name: hobby.name for hobby in hobbies.iterator()}
+        self.hobby_dict = {hobby.code_name: hobby.name for hobby in hobbies.iterator()}
 
     def search_account_query(self, contains= False):
         if ' ' in self.query:
@@ -76,12 +76,12 @@ class SearchEngine:
                     continue
                 elif query:
                     q = q.replace('#', '')
-                    query = query | Q(tag__icontains=q)
+                    query = query | Q(tag__istartswith=q)
                 else:
                     q = q.replace('#', '')
-                    query = Q(tag__icontains=q)
+                    query = Q(tag__istartswith=q)
             return query
-        return Q(tag__icontains=self.query)
+        return Q(tag__istartswith=self.query)
 
     def search_hobby_query(self):
         if ' ' in self.query:
@@ -126,15 +126,15 @@ class SearchEngine:
     def serialise_account(self, account: Account):
 
         associated = self.user_in_association(account)
+        hobby = self.hobby_dict[account.primary_hobby] if len(account.primary_hobby) > 0 else account.primary_hobby
         return {
             "account_id": account.account_id,
             "name": f'{account.first_name} {account.last_name}',
             "username": account.username,
-            "hobby": self.hobby[account.primary_hobby] if len(account.primary_hobby) > 0 else account.primary_hobby,
+            "hobby": hobby,
             "following": associated[0],
-            "friend": associated[1],
             "avatar": account.avatar,
-            "type": "account"
+            "type": "account",
         }
 
     @staticmethod
@@ -147,11 +147,10 @@ class SearchEngine:
 
     def search_tags(self):
         tags: QuerySet = Tags.objects.filter(self.search_tag_query()).annotate(tag_dist=Levenshtein(F('tag'), self.query))\
-            .order_by('-tag_dist')
+            .order_by('tag_dist')
         return [self.serialise_tag(tag) for tag in tags.iterator()]
 
     def search_users(self):
-        self.hobby = Hobby.objects.all()
         accounts: QuerySet = Account.objects.filter(self.search_account_query()).exclude(self.exclusion_user_query())
 
         if accounts.exists():
@@ -160,14 +159,13 @@ class SearchEngine:
                                                                name=Concat(F('first_name'), Value(' '), F('last_name'),
                                                                            output_field=CharField()),
                                                                name_dist=Levenshtein(F('name'), self.query)
-                                                               ).order_by('-name_dist', '-u_dist')
+                                                               ).order_by('name_dist', 'u_dist')
 
         return [self.serialise_account(user) for user in accounts.iterator()]
 
     def search_hobby(self):
-        hobbies = Hobby.objects.filter(self.search_hobby_query())
-        return [self.serialise_hobby(hobby) for hobby in
-                sorted(hobbies, key=lambda hobby: fuzz.ratio(self.query, hobby.name), reverse=True)]
+        hobbies: QuerySet = Hobby.objects.filter(self.search_hobby_query()).annotate(dist=Levenshtein(F('name'), self.query)).order_by('dist')
+        return [self.serialise_hobby(hobby) for hobby in hobbies.iterator()]
 
     def search(self):
         return {

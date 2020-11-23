@@ -41,8 +41,8 @@ class SearchFollowUp(APIView):
         name = ''
         posts = []
         if 'hastag' in data:
-            name = f'#{data["hastag"]}'
-            posts = Post.objects.filter(hastags__contains=[name])
+            name = f'{data["hastag"]}'
+            posts = Post.objects.filter(hash_tags__tag=name)
         elif 'hobby' in data:
             name = data['hobby']
             hobbies = Hobby.objects.filter(code_name=name)
@@ -51,7 +51,7 @@ class SearchFollowUp(APIView):
                 name = hobbies.first().name
         serialized_data = ShallowPostSerializer(posts).data()
         count = len(serialized_data)
-        return Response({"posts":serialized_data,"name":name,"count": count }, status=status.HTTP_200_OK)
+        return Response({"posts": serialized_data, "name": name, "count": count}, status=status.HTTP_200_OK)
 
 
 
