@@ -113,8 +113,6 @@ class SearchEngine:
             friend = 0
             if self.user.following and account.account_id in self.user.following:
                 following = 1
-            if self.user.friend and account.account_id in self.user.friend:
-                friend = 1
             return following, friend
         return 0, 0
 
@@ -132,7 +130,7 @@ class SearchEngine:
             "account_id": account.account_id,
             "name": f'{account.first_name} {account.last_name}',
             "username": account.username,
-            "hobby": self.hobby.get(account.primary_hobby),
+            "hobby": self.hobby[account.primary_hobby] if len(account.primary_hobby) > 0 else account.primary_hobby,
             "following": associated[0],
             "friend": associated[1],
             "avatar": account.avatar,
@@ -179,11 +177,11 @@ class SearchEngine:
         }
 
     def hastag_follow_up(self):
-        posts: QuerySet = Post.objects.filter(Q(hastags__contains=[self.f_data])).order_by('-created_at')
-        serializer = PostSerializer(posts, self.user)
+        posts: QuerySet = Post.objects.filter(Q(hash_tags__tag=self.f_data)).order_by('-created_at')
+        serializer = PostSerializer(posts, user=self.user)
         return {'posts': serializer.render(), 'len': len(posts)}
 
     def hobby_follow_up(self):
         posts: QuerySet = Post.objects.filter(hobby__code_name=self.f_data).order_by('-created_at')
-        serializer = PostSerializer(posts, self.user)
+        serializer = PostSerializer(posts, user=self.user)
         return {'posts': serializer.render(), 'len': len(posts)}

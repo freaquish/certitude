@@ -1,5 +1,5 @@
 from insight.models import *
-from django.db.models import Q, QuerySet
+from django.db.models import Q, QuerySet, Count
 from insight.workers.analyzer import Analyzer
 
 
@@ -30,6 +30,24 @@ def migrate_posts():
             {'view': post.views.count(), 'love': post.loves.count(), 'share': post.shares.count()})
         post.net_score = post.freshness_score + post.score
         post.save()
+
+
+def migrate_hobby_reports():
+    accounts: QuerySet = Account.objects.all()
+    for account in accounts.iterator():
+        hobbies: QuerySet = Hobby.objects.all()
+        for hobby in hobbies.iterator():
+            viewed_posts: QuerySet = Post.objects.filter(Q(views__account_id=account.account_id) & Q(hobby=hobby)).count()
+            loved_posts: QuerySet = Post.objects.filter(Q(loves__account_id=account.account_id) & Q(hobby=hobby)).count()
+            shared_posts: QuerySet = Post.objects.filter(Q(shares__account_id=account.account_id) & Q(hobby=hobby)).count()
+            commented_posts: QuerySet = Post.objects.filter(Q(comments__account=account) & Q(hobby=hobby)).count()
+            if viewed_posts > 0 or loved_posts > 0 or shared_posts > 0 or commented_posts > 0:
+                report, created = HobbyReport.objects.get_or_create(account=account, hobby=hobby,
+                                                                    views=viewed_posts, loves=loved_posts, shares=shared_posts,
+                                                                    comments=commented_posts
+                                                                    )
+
+
 
 
 

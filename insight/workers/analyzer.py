@@ -9,8 +9,7 @@ from insight.models import *
 from insight.workers.interface import AnalyzerInterface
 from celery import shared_task
 from insight.utils import next_sunday, last_monday
-from django.db.models import Q, QuerySet
-from django.db.models.functions import Exp
+from django.db.models import Q, QuerySet, ExpressionWrapper, F, DecimalField
 from math import log
 
 
@@ -35,7 +34,8 @@ class Analyzer(AnalyzerInterface):
         hobby: Hobby = hobbies.first()
         hobby_report, created = HobbyReport.objects.get_or_create(account=self.user, hobby=hobby)
         for key, value in reports.items():
-            hobby_report.__dict__[key] += value
+            # only view,love, share supported
+            hobby_report.__dict__[f'{key}s'] += value
         hobby_report.save()
         return hobby_report
 
@@ -76,8 +76,15 @@ class Analyzer(AnalyzerInterface):
             avg_number_in_week: float = number / 4  # minimum required posts are 4 in a week
             if avg_number_in_week > 1:
                 scoreboard.retention = log(avg_number_in_week)
-                scoreboard.net_score += scoreboard.retention
                 scoreboard.save()
+        reports: QuerySet = HobbyReport.objects.select_related('hobby').filter(account=self.user) \
+            .annotate(focus=ExpressionWrapper(
+            F('views') + F('shares') + F('loves') + F('comments'), output_field=DecimalField()
+        )).order_by('-focus')
+        if reports.exists():
+            report: HobbyReport = reports.first()
+            self.user.primary_hobby = report.hobby.code_name
+            self.user.save()
 
     @staticmethod
     @shared_task

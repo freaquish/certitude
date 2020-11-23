@@ -393,7 +393,7 @@ class PaginatedDiscovery(GenericAPIView):
 
     def get(self, request):
         user = request.user
-        hobbies = []
+        serialized_hobbies = []
         if 'no_hobby' not in request.GET:
             hobbies: QuerySet = RelevantHobby(user).arrange_relevant_hobbies()
             serialized_hobbies: List[Dict[str, Any]] = [{"name": hobby.name, "code_name": hobby.code_name} for hobby in hobbies.iterator()]
