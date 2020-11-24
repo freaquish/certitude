@@ -23,7 +23,7 @@ class PostActions:
         if self.user:
             comment = UserPostComment.objects.create(
                 post_id=self.post.post_id, account=self.user, created_at=get_ist(), comment=value)
-            return self.commit_action('comment')
+            return self.commit_action('comment', user_comment=comment)
 
     """
     Serious Improvement required, suppose user base grown to 10 million and 5 million post
@@ -50,7 +50,7 @@ class PostActions:
 
     def micro_action(self, action, val='', for_test: bool = False):
         weight = 0.0
-        if self.user.account_id == self.post.account.account_id:
+        if self.user.account_id == self.post.account.account_id and action != 'comment':
             return None
         elif action == 'comment':
             commit = self.commented(val)

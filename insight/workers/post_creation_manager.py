@@ -46,7 +46,9 @@ class PostCreationManager(PostCreationInterface):
             return tag.replace('#', '')
 
     def create_tag(self):
-        all_tags = self.post.atags + self.post.hastags
+
+        all_tags = self.a_tags + self.hash_tags
+        print('Inside tag creation', all_tags)
         if len(all_tags) == 0:
             return None
         tag_query = None
@@ -55,23 +57,26 @@ class PostCreationManager(PostCreationInterface):
                 tag_query = tag_query | Q(tag=self.sanitize_tag(tag))
             else:
                 tag_query = Q(tag=tag)
+        print(all_tags, tag_query)
         if tag_query:
             tags_in_db: QuerySet = Tags.objects.filter(tag_query).values_list('tag', flat=True)
-            tags_not_in_db = set([self.sanitize_tag(tag) for tag in all_tags]).difference(set(tags_in_db))
+            tags_not_in_db = set([tag for tag in all_tags]).difference(set(tags_in_db))
+            print(tags_not_in_db, tags_in_db)
             Tags.objects.bulk_create(
-                [Tags(tag=self.sanitize_tag(tag), created_at=get_ist(), tag_typ=A_TAG if '@' in tag else A_TAG,
+                [Tags(tag=self.sanitize_tag(tag), created_at=get_ist(), tag_type=A_TAG if '@' in tag else HASH,
                       first_used=self.post.post_id) for tag in tags_not_in_db]
             )
             tags_in_db: QuerySet = Tags.objects.filter(tag_query)
             # TODO: Watch Python Compilation
+            print(tags_in_db)
             self.post.hash_tags.add(*tags_in_db.filter(tag_type=HASH))
             self.post.a_tags.add(*tags_in_db.filter(tag_type=A_TAG))
 
     def after_creation(self):
         if self.post is None:
             return None
-        self.analyzer = Analyzer(self.post.account)
         self.create_tag()
+        self.analyzer = Analyzer(self.post.account)
         self.analyzer.analyzer_create_post(self.post)
 
 

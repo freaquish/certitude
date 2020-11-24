@@ -31,7 +31,10 @@ class PostSerializer:
         data = {"created_at": post.created_at, "header": {}, "body": post.assets,
                 "caption": "", "footer": {}, "meta": {}, "post_id": post.post_id,
                 "isSelf": 1 if post.account == self.user else 0}
-        data["meta"]["score"] = post.score
+        if hasattr(post, 'current_score'):
+            data["meta"]["score"] = post.current_score
+        else:
+            data["meta"]["score"] = post.score
         time_left = get_ist() - post.created_at
         data["meta"]["created"] = '{0:.2f}d'.format(time_left.days) if time_left.days >= 1 else '{0:.2f}h'.format(
              time_left.seconds / 3600)
@@ -64,6 +67,57 @@ class PostSerializer:
             if serialise is None:
                 continue
             rendered.append(serialise)
+        return rendered
+
+
+class DiscoverSerializer:
+
+    def __init__(self, posts: QuerySet):
+        self.posts: QuerySet = posts
+
+    @staticmethod
+    def get_asset(post: Post):
+        if "text" in post.assets and len(post.assets["text"]["data"]) > 0:
+            if "images" in post.assets and len(post.assets["images"]) > 0:
+                return post.assets["images"][0]
+            else:
+                return post.assets["text"]
+        elif "images" in post.assets and len(post.assets["images"]) > 0:
+            return post.assets["images"][0]
+        elif "video" in post.assets and len(post.assets["video"]) > 0:
+            return post.assets["video"]
+        elif "audio" in post.assets and len(post.assets["audio"]) > 0:
+            return post.assets["audio"]
+        else:
+            return None
+
+    def serialize(self, post: Post):
+        assets = self.get_asset(post)
+        if assets is None:
+            return None
+        return {
+            "post_id": post.post_id,
+            "asset": assets,
+            "account": {
+                "avatar": post.account.avatar,
+                "username": post.account.username
+            }
+        }
+
+    def rendered_data(self) -> list:
+        rendered = []
+        if self.posts.__class__ == QuerySet:
+            for post in self.posts.iterator():
+                render = self.serialize(post)
+                if post is None:
+                    continue
+                rendered.append(render)
+        else:
+            for post in self.posts:
+                render = self.serialize(post)
+                if post is None:
+                    continue
+                rendered.append(render)
         return rendered
 
 

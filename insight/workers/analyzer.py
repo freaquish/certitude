@@ -32,7 +32,14 @@ class Analyzer(AnalyzerInterface):
         if not hobbies.exists():
             return None
         hobby: Hobby = hobbies.first()
-        hobby_report, created = HobbyReport.objects.get_or_create(account=self.user, hobby=hobby)
+        hobby_reports: QuerySet = HobbyReport.objects.filter(Q(account=self.user) & Q(hobby=hobby))
+        hobby_report: HobbyReport = None
+        if hobby_reports.exists():
+            hobby_report: HobbyReport = hobby_reports.first()
+        else:
+            hobby_report: HobbyReport = HobbyReport.objects.create(
+                account=self.user, hobby=hobby
+            )
         for key, value in reports.items():
             # only view,love, share supported
             hobby_report.__dict__[f'{key}s'] += value
@@ -66,7 +73,6 @@ class Analyzer(AnalyzerInterface):
         else:
             scoreboard: Scoreboard = scoreboards.first()
         scoreboard.posts.add(post)
-
         return scoreboard
 
     def user_activity(self, scoreboard: Scoreboard):
@@ -105,13 +111,10 @@ class Analyzer(AnalyzerInterface):
         return None
 
     def analyzer_create_post(self, post: Post):
-        self.manage_hobby_report(post.hobby.code_name, posts=1)
+        self.manage_hobby_report(post.hobby.code_name, post=1)
         self.manage_score_post(post, is_new=True)
         self.background_task.delay(self.user.account_id, post.post_id, created=True),
 
     def analyze_post_action(self, post: Post, for_test: bool = False, **actions):
         self.manage_score_post(post)
-        if for_test:
-            self.user_activity(self.manage_scoreboard(post, **actions))
-            return None
         self.background_task.delay(self.user.account_id, post.post_id, **actions)

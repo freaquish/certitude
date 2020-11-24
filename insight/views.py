@@ -366,7 +366,9 @@ class PaginatedFeedView(GenericAPIView):
             self.queryset = trends.extract_queryset(trends.extract_trending_in_hobby_user())
         else:
             self.queryset = self.trends.extract_queryset()
-        length_queryset = self.queryset.count()
+        if isinstance(self.queryset, list):
+            return Response({"posts": []}, status=status.HTTP_204_NO_CONTENT)
+        length_queryset = self.queryset.count() if isinstance(self.queryset, QuerySet) else 0
         page = self.paginate_queryset(self.queryset)
         if page is not None:
             serialized = PostSerializer(page, user=user)
@@ -387,7 +389,7 @@ class PaginatedFeedView(GenericAPIView):
 class PaginatedDiscovery(GenericAPIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
-    serializer_class = None
+    serializer_class = DiscoverSerializer
     queryset = None
     paginated_class = DiscoverPaginator
 
@@ -404,7 +406,8 @@ class PaginatedDiscovery(GenericAPIView):
         query = discover.hobby_query()
         self.queryset = discover.extract_queryset(query)
         page = self.paginate_queryset(self.queryset)
-        serialized = discover.rendered_data(self.queryset)
+        serialized = DiscoverSerializer(self.queryset).rendered_data()
+        print(self.queryset.count(), page)
         response: Response = Response({"hobbies": serialized_hobbies}, status=status.HTTP_200_OK)
         if page is None:
             data = serialized

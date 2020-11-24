@@ -4,6 +4,12 @@ from django.db.models import QuerySet, Q
 
 class TrendsInterface:
 
+    WEIGHT_POST: float = 2.00
+    WEIGHT_VIEW: float = 0.12
+    WEIGHT_LOVE: float = 0.35
+    WEIGHT_SHARE: float = 0.60
+    WEIGHT_COMMENTS: float = 0.10
+
     def __init__(self, *account):
         if account:
             self.account: models.Account = account[0]

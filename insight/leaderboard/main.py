@@ -6,32 +6,49 @@ Comments about a shit piece of program written just to workout in the current sc
 
 Visit insight.algol.Leaderboard
 """
-from django.db.models import Q, Window, F, Count, Sum
+from django.db.models import Q, Window, F, Count, Sum, ExpressionWrapper, DecimalField, Value
 from django.db.models.functions import DenseRank
 from fuzzywuzzy import fuzz
 from insight.leaderboard.interface import *
 
 
 class LeaderboardEngine(LeaderboardEngineInterface):
+    query = Q(expires_on__gte=get_ist().date()) & Q(created_at__lte=get_ist().date())
+
+    @staticmethod
+    def ranking(string: str) -> Window:
+        return Window(
+            expression=DenseRank(),
+            order_by=F(string).desc()
+        )
 
     def hobby_rank_global(self, hobby: str = None, sort: str = 'net_score') -> QuerySet:
-        query = Q(expires_on__gte=get_ist().date()) & Q(created_at__lte=get_ist().date())
         if hobby:
-            query = query & Q(posts__hobby__code_name=hobby)
+            self.query = self.query & Q(posts__hobby__code_name=hobby)
         annotations = {
-            "views": Count('posts__views', distinct=True),
-            "loves": Count('posts__loves', distinct=True),
-            "shares": Count('posts__shares', distinct=True),
-            "up_votes": Count('posts__up_votes', distinct=True),
-            "down_votes": Count('posts__down_votes', distinct=True),
-            "net_score": Sum('posts__net_score'),
+            "net_score": ExpressionWrapper(Sum('posts__net_score') * Value(0.001), output_field=DecimalField())
         }
-        dense_ranking = Window(
-            expression=DenseRank(),
-            order_by=F(sort).desc()
-        )
+        dense_ranking = self.ranking('net_score')
         annotations['ranked'] = dense_ranking
-        return Scoreboard.objects.filter(query).annotate(**annotations).distinct()
+        return Scoreboard.objects.filter(self.query).annotate(**annotations).distinct().order_by('ranked')
+
+    def sort_by_love_global(self, hobby: str = None) -> QuerySet:
+        if hobby:
+            self.query = self.query & Q(posts__hobby__code_name=hobby)
+        annotations = {
+            "net_score": Count("posts__loves"),
+            "ranked": self.ranking('net_score')
+        }
+        return Scoreboard.objects.filter(self.query).annotate(**annotations).distinct().order_by('ranked')
+
+    def sort_by_views_global(self, hobby: str = None) -> QuerySet:
+        if hobby:
+            self.query = self.query & Q(posts__hobby__code_name=hobby)
+        annotations = {
+            "net_score": Count("posts__views"),
+            "ranked": self.ranking('net_score')
+        }
+        return Scoreboard.objects.filter(self.query).annotate(**annotations).distinct().order_by('ranked')
 
     def find_users_in_queryset(self, queryset: QuerySet, user_string=None) -> QuerySet:
         account_str = user_string
@@ -50,7 +67,7 @@ class LeaderboardEngine(LeaderboardEngineInterface):
                                                                  fuzz.ratio(user_string,
                                                                             scoreboard.account.first_name)))]
 
-    def serialize_hobby_rank(self, scoreboard: Scoreboard, hobby: str = None) -> dict:
+    def serialize_hobby_rank(self, scoreboard: Scoreboard, hobby: str = None, sort: str = 'net_score') -> dict:
         return {
             "account": {
                 "account_id": scoreboard.account.account_id,
@@ -60,5 +77,6 @@ class LeaderboardEngine(LeaderboardEngineInterface):
             },
             "score": scoreboard.net_score,
             "rank": scoreboard.ranked,
-            "isSelf": 1 if self.user and scoreboard.account == self.user else 0
+            "isSelf": 1 if self.user and scoreboard.account == self.user else 0,
+            "sort": sort
         }

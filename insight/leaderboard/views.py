@@ -21,12 +21,18 @@ class LeaderboardView(APIView):
         user: Account = request.user
         leaderboard = LeaderboardEngine(user=user)
         sort = 'net_score'
-        if 'sort' in request.GET:
-            sort = request.GET['sort']
         hobby = None
         if 'hobby' in request.GET and request.GET['hobby'] != 'all':
             hobby = request.GET['hobby']
-        scoreboards = leaderboard.hobby_rank_global(hobby=hobby, sort=sort)
+
+        if 'sort' in request.GET:
+            sort = request.GET['sort']
+            if sort == "loves":
+                scoreboards: QuerySet = leaderboard.sort_by_love_global(hobby=hobby)
+            elif sort == 'views':
+                scoreboards: QuerySet = leaderboard.sort_by_views_global(hobby=hobby)
+        else:
+            scoreboards = leaderboard.hobby_rank_global(hobby=hobby, sort=sort)
         serialise_hobby = []
         if 'no_hobby' not in request.GET:
             r_hobbies = RelevantHobby(user)
@@ -34,11 +40,12 @@ class LeaderboardView(APIView):
 
         if 'search' in request.GET:
             serialised_scoreboards = leaderboard.get_ranked_user(scoreboards, user_string=request.GET['search'])
-            return Response({"hobbies": serialise_hobby, "scoreboards": serialised_scoreboards}, status=status.HTTP_200_OK)
+            return Response({"hobbies": serialise_hobby, "scoreboards": serialised_scoreboards},
+                            status=status.HTTP_200_OK)
 
         # TODO: Paginator in second edition
         serialized_scoreboards = []
         for scoreboard in scoreboards.iterator():
-            score_card = leaderboard.serialize_hobby_rank(scoreboard, hobby=hobby)
+            score_card = leaderboard.serialize_hobby_rank(scoreboard, hobby=hobby, sort=sort)
             serialized_scoreboards.append(score_card)
         return Response({"hobbies": serialise_hobby, "scoreboards": serialized_scoreboards}, status=status.HTTP_200_OK)
