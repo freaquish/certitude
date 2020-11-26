@@ -40,9 +40,9 @@ class Discover(AbstractDiscover):
         query = None
         for hobby in self.hobbies:
             if query:
-                query = query | Q(code_name=hobby)
+                query = query | Q(hobby__code_name=hobby)
             else:
-                query = Q(code_name=hobby)
+                query = Q(hobby__code_name=hobby)
         return query
 
     def extract_queryset(self, query) -> QuerySet:

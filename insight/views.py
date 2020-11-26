@@ -8,7 +8,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from typing import *
-
+from django.contrib.auth.models import AnonymousUser
 from django.db.models import Q, QuerySet
 from rest_framework.authtoken.models import Token
 from insight.home.main import PostActions
@@ -252,7 +252,6 @@ class FetchComment(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pid: str):
-        user = request.user
         comments = UserPostComment.objects.filter(post_id=pid).order_by('created_at')
         serialized = CommentSerializer(comments)
         return Response({"comments": serialized.render()}, status=status.HTTP_200_OK)
@@ -387,34 +386,37 @@ class PaginatedFeedView(GenericAPIView):
 
 
 class PaginatedDiscovery(GenericAPIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     serializer_class = DiscoverSerializer
     queryset = None
-    paginated_class = DiscoverPaginator
+    pagination_class = DiscoverPaginator
 
     def get(self, request):
         user = request.user
         serialized_hobbies = []
-        if 'no_hobby' not in request.GET:
+        if not isinstance(user, AnonymousUser) and 'no_hobby' not in request.GET:
             hobbies: QuerySet = RelevantHobby(user).arrange_relevant_hobbies()
             serialized_hobbies: List[Dict[str, Any]] = [{"name": hobby.name, "code_name": hobby.code_name} for hobby in hobbies.iterator()]
+        elif isinstance(user, Account) and 'no_hobby' not in request.GET:
+            hobbies: QuerySet = Hobby.objects.all()
+            serialized_hobbies: List[Dict[str, Any]] = [{"name": hobby.name, "code_name": hobby.code_name} for hobby in hobbies.iterator()]
         hobby = None
-        if 'hobby' in request.GET:
-            hobby = request.GET['hobby']
+        if 'hobby' in request.GET and request.GET['hobby'] != 'all':
+            hobby = [request.GET['hobby']]
         discover: Discover = Discover(user=user, hobbies=hobby)
         query = discover.hobby_query()
         self.queryset = discover.extract_queryset(query)
         page = self.paginate_queryset(self.queryset)
-        serialized = DiscoverSerializer(self.queryset).rendered_data()
-        print(self.queryset.count(), page)
+        # serialized = PostSerializer(self.queryset, user=user)  # DiscoverSerializer(self.queryset).rendered_data()
         response: Response = Response({"hobbies": serialized_hobbies}, status=status.HTTP_200_OK)
         if page is None:
-            data = serialized
+            serialized = PostSerializer(self.queryset, user=user)
+            data = serialized.render()
             response.data.update({"posts": data})
         else:
-            result: Response = self.get_paginated_response(serialized)
-            result.data.update({"hobbies", serialized_hobbies})
+            serialized = PostSerializer(page, user=user)
+            result: Response = self.get_paginated_response(serialized.render())
+            result.data.update({"hobbies": serialized_hobbies})
             response = result
         return response
 

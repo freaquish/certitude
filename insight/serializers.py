@@ -1,7 +1,7 @@
 from .models import *
 from .utils import *
 from rest_framework.serializers import ModelSerializer
-
+from django.contrib.auth.models import AnonymousUser
 from django.db.models import QuerySet
 
 
@@ -45,7 +45,7 @@ class PostSerializer:
         data["header"]["hobby_name"] = post.hobby.name
         data["header"]["hobby"] = post.hobby.code_name
         data["header"]["following"] = 0
-        if self.user and (post.account == self.user or post.account.account_id in self.user.following):
+        if self.user and not isinstance(self.user, AnonymousUser) and (post.account == self.user or post.account.account_id in self.user.following):
             data['header']['following'] = 1
         data["caption"] = post.caption
         data["footer"]["action_map"] = {
@@ -54,10 +54,11 @@ class PostSerializer:
             "share": post.shares.count(),
             "comment": post.comments.count()
         }
-        data["meta"]["actions"] = {}
-        data["meta"]["actions"]["viewed"] = 1 if post.views.filter(account_id=self.user.account_id).exists() else 0
-        data["meta"]["actions"]["loved"] = 1 if post.loves.filter(account_id=self.user.account_id).exists() else 0
-        data["meta"]["actions"]["shared"] = 1 if post.shares.filter(account_id=self.user.account_id).exists() else 0
+        data["meta"]["actions"] = {"viewed": 0, "loved": 0, "shared": 0}
+        if not isinstance(self.user, AnonymousUser):
+            data["meta"]["actions"]["viewed"] = 1 if post.views.filter(account_id=self.user.account_id).exists() else 0
+            data["meta"]["actions"]["loved"] = 1 if post.loves.filter(account_id=self.user.account_id).exists() else 0
+            data["meta"]["actions"]["shared"] = 1 if post.shares.filter(account_id=self.user.account_id).exists() else 0
         return data
 
     def render(self):
@@ -78,16 +79,18 @@ class DiscoverSerializer:
     @staticmethod
     def get_asset(post: Post):
         if "text" in post.assets and len(post.assets["text"]["data"]) > 0:
+            asset = {"text": post.assets["text"]}
             if "images" in post.assets and len(post.assets["images"]) > 0:
-                return post.assets["images"][0]
-            else:
-                return post.assets["text"]
+                asset["image"] = post.assets["images"][0]
+            elif "video" in post.assets:
+                asset["video"] = post.assets["video"]
+            return asset
         elif "images" in post.assets and len(post.assets["images"]) > 0:
-            return post.assets["images"][0]
+            return {"image": post.assets["images"][0]}
         elif "video" in post.assets and len(post.assets["video"]) > 0:
-            return post.assets["video"]
+            return {"video": post.assets["video"]}
         elif "audio" in post.assets and len(post.assets["audio"]) > 0:
-            return post.assets["audio"]
+            return {"audio": post.assets["audio"]}
         else:
             return None
 

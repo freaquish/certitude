@@ -14,3 +14,4 @@ class RelevantHobby:
             return Hobby.objects.annotate(exist=Exists(reports)).order_by('-exist')
 
 
+
