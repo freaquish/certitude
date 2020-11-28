@@ -35,11 +35,9 @@ class LoginView(APIView):
         if not account.check_password(data['password']):
             return Response({"error": "Invalid Credentials"}, status=status.HTTP_401_UNAUTHORIZED)
         token: Token = Token.objects.get(user=account)
-        token.delete()
-        new_token: Token = Token.objects.create(user=account)
         if 'coords' in data.keys():
             account.objects.insert_coords(json_to_coord(data['coords']))
-        return Response({'token': new_token.key, 'first_name': account.first_name, 'avatar': account.avatar},
+        return Response({'token': token.key, 'first_name': account.first_name, 'avatar': account.avatar},
                         status=status.HTTP_202_ACCEPTED)
 
 
