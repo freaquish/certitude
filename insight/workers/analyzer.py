@@ -68,11 +68,13 @@ class Analyzer(AnalyzerInterface):
         if not scoreboards.exists():
             scoreboard: Scoreboard = Scoreboard.objects.create(account=post.account, original_creation=get_ist(),
                                                                created_at=get_ist(),
-                                                               expires_on=next_sunday(
-                                                                   get_ist()) if get_ist().weekday() < 6 else get_ist())
+                                                               expires_on=next_sunday())
         else:
             scoreboard: Scoreboard = scoreboards.first()
         scoreboard.posts.add(post)
+        for key, value in actions.items():
+            scoreboard.__dict__[f'{key}s'] += value
+        scoreboard.save()
         return scoreboard
 
     def user_activity(self, scoreboard: Scoreboard):

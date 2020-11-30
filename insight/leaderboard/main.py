@@ -36,7 +36,7 @@ class LeaderboardEngine(LeaderboardEngineInterface):
         if hobby:
             self.query = self.query & Q(posts__hobby__code_name=hobby)
         annotations = {
-            "net_score": Count("posts__loves"),
+            "net_score": F('loves'),
             "ranked": self.ranking('net_score')
         }
         return Scoreboard.objects.filter(self.query).annotate(**annotations).distinct().order_by('ranked')
@@ -45,7 +45,7 @@ class LeaderboardEngine(LeaderboardEngineInterface):
         if hobby:
             self.query = self.query & Q(posts__hobby__code_name=hobby)
         annotations = {
-            "net_score": Count("posts__views"),
+            "net_score": F('views'),
             "ranked": self.ranking('net_score')
         }
         return Scoreboard.objects.filter(self.query).annotate(**annotations).distinct().order_by('ranked')

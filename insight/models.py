@@ -220,6 +220,11 @@ class Scoreboard(models.Model):
     original_creation = models.DateTimeField(default=get_ist())
     expires_on = models.DateField(default=get_ist_date())
     posts = models.ManyToManyField(Post, blank=True, related_name='scoreboard_posts', default='')
+    views = models.IntegerField(default=0)
+    loves = models.IntegerField(default=0)
+    shares = models.IntegerField(default=0)
+    up_votes = models.IntegerField(default=0)
+    down_votes = models.IntegerField(default=0)
     retention = models.DecimalField(max_digits=9, decimal_places=5, default=0.0)
 
 
