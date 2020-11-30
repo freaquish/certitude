@@ -10,6 +10,7 @@ from django.db.models import Q, Window, F, Count, Sum, ExpressionWrapper, Decima
 from django.db.models.functions import DenseRank
 from fuzzywuzzy import fuzz
 from insight.leaderboard.interface import *
+from insight.workers.interface import AnalyzerInterface
 
 
 class LeaderboardEngine(LeaderboardEngineInterface):
@@ -22,11 +23,26 @@ class LeaderboardEngine(LeaderboardEngineInterface):
             order_by=F(string).desc()
         )
 
+    @staticmethod
+    def net_score() -> ExpressionWrapper:
+        return ExpressionWrapper(
+            ExpressionWrapper(
+                Value(AnalyzerInterface.WEIGHT_VIEW) * F('views'), output_field=DecimalField()
+            ) + ExpressionWrapper(
+                Value(AnalyzerInterface.WEIGHT_SHARE) * F('loves'), output_field=DecimalField()
+            ) + ExpressionWrapper(
+                Value(AnalyzerInterface.WEIGHT_SHARE) * F('shares'), output_field=DecimalField()
+            ),
+            output_field=DecimalField())
+
     def hobby_rank_global(self, hobby: str = None, sort: str = 'net_score') -> QuerySet:
         if hobby:
             self.query = self.query & Q(posts__hobby__code_name=hobby)
+        # annotations = {
+        #     "net_score": ExpressionWrapper(Sum('posts__net_score') * Value(0.001), output_field=DecimalField())
+        # }
         annotations = {
-            "net_score": ExpressionWrapper(Sum('posts__net_score') * Value(0.001), output_field=DecimalField())
+            "net_score": self.net_score()
         }
         dense_ranking = self.ranking('net_score')
         annotations['ranked'] = dense_ranking

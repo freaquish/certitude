@@ -83,11 +83,11 @@ def sanitize_tags():
 
 
 def migrate_scoreboard():
-    scoreboards: QuerySet = Scoreboard.objects.all().annotate(v=Count('posts__views'), l=Count('posts__loves'), s=Count('posts__shares'))
+    scoreboards: QuerySet = Scoreboard.objects.all()
     for scoreboard in scoreboards.iterator():
-        scoreboard.views = scoreboard.v
-        scoreboard.loves = scoreboard.l
-        scoreboard.shares = scoreboard.s
+        scoreboard.views = scoreboard.posts.aggrgate(Count('views'))['views__count']
+        scoreboard.loves = scoreboard.posts.aggrgate(Count('loves'))['loves__count']
+        scoreboard.shares = scoreboard.posts.aggrgate(Count('shares'))['shares__count']
         scoreboard.save()
 
 

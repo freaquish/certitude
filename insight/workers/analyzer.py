@@ -71,7 +71,8 @@ class Analyzer(AnalyzerInterface):
                                                                expires_on=next_sunday())
         else:
             scoreboard: Scoreboard = scoreboards.first()
-        scoreboard.posts.add(post)
+        if not scoreboard.posts.filter(post_id=post.post_id).exists():
+            scoreboard.posts.add(post)
         for key, value in actions.items():
             scoreboard.__dict__[f'{key}s'] += value
         scoreboard.save()
@@ -106,10 +107,9 @@ class Analyzer(AnalyzerInterface):
         analyzer = Analyzer(user)
         if 'hobby' in kwargs and 'report' in kwargs:
             analyzer.manage_hobby_report(kwargs['hobby'], **kwargs['report'])
-        actions = {}
-        if 'home' in kwargs:
-            actions = kwargs['home']
-        analyzer.user_activity(analyzer.manage_scoreboard(post, **actions))
+        if 'post' in kwargs:
+            del kwargs['post']
+        analyzer.user_activity(analyzer.manage_scoreboard(post, **kwargs))
         return None
 
     def analyzer_create_post(self, post: Post):

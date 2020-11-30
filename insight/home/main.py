@@ -1,10 +1,6 @@
-from insight.models import Post, ActionStore, Account, UserPostComment
-from celery import shared_task
-from insight.workers.analyzer import Analyzer
-from django.db.models import QuerySet
+from insight.models import Post, Account, UserPostComment
 from insight.utils import get_ist
 from insight.workers.analyzer import Analyzer
-from math import exp
 
 weights = {
     'love': 0.50,
@@ -40,8 +36,10 @@ class PostActions:
             return False
         if action == 'view':
             self.post.views.add(self.user)
-        elif action == 'love' or action == 'un_love':
+        elif action == 'love':
             self.post.loves.add(self.user)
+        elif action == 'un_love':
+            self.post.loves.remove(self.user)
         elif action == 'share':
             self.post.shares.add(self.user)
         elif action == 'comment' and user_comment:
