@@ -182,25 +182,6 @@ class Post(models.Model):
     is_global = models.BooleanField(default=True)
 
 
-class ActionStore(models.Model):
-    account_id = models.CharField(max_length=50, db_index=True, default='')
-    post_id = models.CharField(max_length=25, db_index=True, default='')
-    loved = models.BooleanField(default=False)
-    loved_at = models.DateTimeField(default=get_ist())
-    viewed = models.BooleanField(default=False)
-    viewed_at = models.DateTimeField(default=get_ist())
-    shared = models.BooleanField(default=False)
-    saved = models.BooleanField(default=False)
-    commented = models.BooleanField(default=False)
-    up_voted = models.BooleanField(default=False)
-    down_voted = models.BooleanField(default=False)
-
-    def update(self, **kwargs):
-        for key in kwargs.keys():
-            self.__dict__[key] = kwargs[key]
-        self.save()
-
-
 class Places(models.Model):
     place_name = models.TextField()
     city = models.TextField()

@@ -146,27 +146,6 @@ class ExplorePostSerializer(ModelSerializer):
                   'score', 'hobby', 'created_at', 'editor')
 
 
-class ActionStoreSerializer:
-
-    def __init__(self, actions):
-        self.actions = actions
-
-    @staticmethod
-    def _render(action: ActionStore):
-        return {
-            "viewed": 1 if action.viewed else 0,
-            "loved": 1 if action.loved else 0,
-            "shared": 1 if action.shared else 0,
-            "saved": 1 if action.saved else 0,
-        }
-
-    def data(self):
-        json = {}
-        for action in self.actions:
-            json[action.post_id] = self._render(action)
-        return json
-
-
 class ShallowPostSerializer:
     def __init__(self, posts):
         self.posts = posts

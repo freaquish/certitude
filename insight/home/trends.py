@@ -55,7 +55,7 @@ class Trends(TrendsInterface):
             output_field=DurationField()
         )
         score_expression: ExpressionWrapper = ExpressionWrapper(
-            Exp(ExpressionWrapper(Value(1 / 4) * F('duration'),
+            Exp(ExpressionWrapper(Value(-1 / 4) * F('duration'),
                                   output_field=DecimalField())) + Value(0.8) +
             ExpressionWrapper(Value(0.01) * F('score'), output_field=DecimalField())
             , output_field=DecimalField()
@@ -69,5 +69,5 @@ class Trends(TrendsInterface):
                                                                                                       'shares'). \
                 filter(query[0]).annotate(**annotation).exclude(hobby_score=None)
         else:
-            posts: QuerySet = [] # models.Post.objects.annotate(**annotation)
+            posts: QuerySet = []   # models.Post.objects.annotate(**annotation)
         return posts
