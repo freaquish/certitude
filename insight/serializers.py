@@ -55,6 +55,10 @@ class PostSerializer:
             "comment": post.comments.count()
         }
         data["meta"]["actions"] = {"viewed": 0, "loved": 0, "shared": 0}
+        if hasattr(post, "current_score"):
+            data['meta']['current_score'] = post.current_score
+        if hasattr(post, "hobby_score"):
+            data["meta"]["hobby_score"] = post.hobby_score
         if not isinstance(self.user, AnonymousUser):
             data["meta"]["actions"]["viewed"] = 1 if post.views.filter(account_id=self.user.account_id).exists() else 0
             data["meta"]["actions"]["loved"] = 1 if post.loves.filter(account_id=self.user.account_id).exists() else 0

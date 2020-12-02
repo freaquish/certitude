@@ -48,26 +48,37 @@ class Trends(TrendsInterface):
             return None
         return None
 
-    def extract_queryset(self, query: Tuple) -> QuerySet:
+    def most_followed_user(self):
+        if not isinstance(self.account, models.Account):
+            return None
+        # users_post_seen: QuerySet = models.Post.objects.filter(views__account_id=self.account.account_id)
+        followings: QuerySet = models.Account.objects.filter(account_id__in=self.account.following)
+        if not followings.exists():
+            return None
+
+    def extract_queryset(self, *queries: Tuple) -> QuerySet:
+
         time_wrapper: ExpressionWrapper = ExpressionWrapper(
             Trunc('created_at', 'second', output_field=DateTimeField()) -
             Trunc(Now(), 'second', output_field=DateTimeField()),
             output_field=DurationField()
         )
         score_expression: ExpressionWrapper = ExpressionWrapper(
-            Exp(ExpressionWrapper(Value(-1 / 4) * F('duration'),
+            Exp(ExpressionWrapper(Value(1 / 4) * F('duration'),
                                   output_field=DecimalField())) + Value(0.8) +
             ExpressionWrapper(Value(0.01) * F('score'), output_field=DecimalField())
             , output_field=DecimalField()
         )
         annotation = {'duration': ExtractDay(time_wrapper),
                       'current_score': score_expression}
-        if query is not None:
+        if len(queries) > 0:
+            query = queries[0]
             annotation['hobby_score'] = Subquery(query[1].filter(code_name=OuterRef('hobby__code_name'))
                                                  .values_list('hobby_score', flat=True)[:1])
             posts: QuerySet = models.Post.objects.select_related("account", "hobby").prefetch_related('views', 'loves',
                                                                                                       'shares'). \
                 filter(query[0]).annotate(**annotation).exclude(hobby_score=None)
         else:
-            posts: QuerySet = []   # models.Post.objects.annotate(**annotation)
+            annotation['hobby_score'] = ExpressionWrapper(Value(0.0), output_field=DecimalField())
+            posts: QuerySet = models.Post.objects.annotate(**annotation)
         return posts

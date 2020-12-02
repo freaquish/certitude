@@ -357,7 +357,8 @@ class PaginatedFeedView(GenericAPIView):
     pagination_class = FeedPaginator
 
     def get(self, request):
-        user, valid = request.user, True
+        user = request.user
+        valid = isinstance(user, Account)
         if valid:
             trends = Trends(user)
             self.queryset = trends.extract_queryset(trends.extract_trending_in_hobby_user())

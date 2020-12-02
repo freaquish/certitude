@@ -9,7 +9,7 @@ class FeedPaginator(CursorPagination):
     page = DEFAULT_PAGE
     page_size = DEFAULT_PAGE_SIZE
     page_size_query_param = 'page_size'
-    ordering = '-current_score', '-hobby_score'
+    ordering = ['-current_score', '-hobby_score']
 
     def get_paginated_response(self, data):
         next_link = self.get_next_link()
