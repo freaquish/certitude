@@ -170,6 +170,7 @@ class CreatePost(APIView):
         data: dict = json.loads(request.body)
         account: Account = request.user
         if account:
+            print(len(data['assets']))
             if len(data['assets']) == 0:
                 return Response({"msg": "successful"}, status=status.HTTP_201_CREATED)
             post_creation_manager: PostCreationManager = PostCreationManager(account, **data)

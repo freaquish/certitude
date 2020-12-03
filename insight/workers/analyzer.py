@@ -62,13 +62,13 @@ class Analyzer(AnalyzerInterface):
         post.save()
         return post
 
-    def manage_scoreboard(self, post: Post, created: bool = False, **actions):
+    def manage_scoreboard(self, post: Post, **actions):
         scoreboards: QuerySet = Scoreboard.objects.filter(Q(account=post.account) & Q(expires_on__gte=get_ist()) &
                                                           Q(created_at__lte=get_ist()))
         if not scoreboards.exists():
             scoreboard: Scoreboard = Scoreboard.objects.create(account=post.account, original_creation=get_ist(),
                                                                created_at=get_ist(),
-                                                               expires_on=next_sunday())
+                                                               expires_on=next_sunday(get_ist()))
         else:
             scoreboard: Scoreboard = scoreboards.first()
         if not scoreboard.posts.filter(post_id=post.post_id).exists():
@@ -115,7 +115,7 @@ class Analyzer(AnalyzerInterface):
     def analyzer_create_post(self, post: Post):
         self.manage_hobby_report(post.hobby.code_name, post=1)
         self.manage_score_post(post, is_new=True)
-        self.background_task.delay(self.user.account_id, post.post_id, created=True),
+        self.background_task.delay(self.user.account_id, post.post_id, post=1),
 
     def analyze_post_action(self, post: Post, for_test: bool = False, **actions):
         self.manage_score_post(post)

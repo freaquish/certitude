@@ -13,8 +13,10 @@ class PostCreationManager(PostCreationInterface):
     a_tags = []
 
     def render_data(self) -> dict:
+        # print(self.map('hobby'))
         hobbies: QuerySet = Hobby.objects.filter(code_name=self.map('hobby'))
-        if not hobbies:
+        # print(hobbies)
+        if not hobbies.exists():
             return None
         data: dict = self.kwargs.copy()
         if 'coords' in self.kwargs:
@@ -30,10 +32,12 @@ class PostCreationManager(PostCreationInterface):
         data['account'] = self.user
         data['hobby'] = hobbies.first()
         data['is_global'] = False if self.map('is_global') == 0 else True
+        # print('Inside render data', data)
         return data
 
     def create_post(self):
         data: dict = self.render_data()
+        print(data)
         if data is None:
             return data
         self.post: Post = Post.objects.create(**data)
@@ -54,41 +58,29 @@ class PostCreationManager(PostCreationInterface):
         tag_query = None
         for tag in all_tags:
             if tag_query:
-                tag_query = tag_query | Q(tag=self.sanitize_tag(tag))
+                tag_query = tag_query | Q(Q(tag=self.sanitize_tag(tag)) & Q(tag_type=A_TAG if tag[0] == '@' else HASH))
             else:
-                tag_query = Q(tag=tag)
+                tag_query = Q(Q(tag=self.sanitize_tag(tag)) & Q(tag_type=A_TAG if tag[0] == '@' else HASH))
         if tag_query:
             tags_in_db: QuerySet = Tags.objects.filter(tag_query).values_list('tag', flat=True)
-            tags_not_in_db = set([self.sanitize_tag(tag) for tag in all_tags]).difference(set(tags_in_db))
+
+            tags_not_in_db = filter(lambda lam_tag: self.sanitize_tag(lam_tag) not in tags_in_db,  all_tags)
+            tags = [Tags(tag=self.sanitize_tag(tag), created_at=get_ist(), tag_type=A_TAG if '@' in tag else HASH,
+                         first_used=self.post.post_id) for tag in tags_not_in_db]
+            # print(tags_in_db, tags_not_in_db, tags)
             Tags.objects.bulk_create(
-                [Tags(tag=self.sanitize_tag(tag), created_at=get_ist(), tag_type=A_TAG if '@' in tag else HASH,
-                      first_used=self.post.post_id) for tag in tags_not_in_db]
+                tags
             )
-            tags_in_db: QuerySet = Tags.objects.filter(tag_query)
-            # TODO: Watch Python Compilation
-            # print(tags_in_db)
-            self.post.hash_tags.set(tags_in_db.filter(tag_type=HASH))
-            self.post.a_tags.set(tags_in_db.filter(tag_type=A_TAG))
-            return tags_in_db
+            current_tags_in_db: QuerySet = Tags.objects.filter(tag_query)
+            # print(current_tags_in_db)
+            self.post.hash_tags.set(current_tags_in_db.filter(tag_type=HASH))
+            self.post.a_tags.set(current_tags_in_db.filter(tag_type=A_TAG))
+            return None
+        return None
 
     def after_creation(self):
         if self.post is None:
             return None
-        tags: QuerySet = self.create_tag()
+        self.create_tag()
         self.analyzer = Analyzer(self.post.account)
         self.analyzer.analyzer_create_post(self.post)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
