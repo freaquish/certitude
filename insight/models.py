@@ -209,6 +209,43 @@ class Scoreboard(models.Model):
     retention = models.DecimalField(max_digits=9, decimal_places=5, default=0.0)
 
 
+class CompetitionManager(models.Manager):
+
+    def add_post(self, post: Post, *comp):
+
+
+class Competition(models.Model):
+    key = models.CharField(max_length=27, primary_key=True, db_index=True)
+    tag = models.TextField(unique=True, db_index=True)
+    is_active = models.BooleanField(default=True)
+    start = models.DateTimeField(default=get_ist())
+    end = models.DateTimeField(default=get_ist())
+    result = models.DateTimeField(default=get_ist())
+    images = ArrayField(models.TextField(), default=list)
+    hobbies = models.ManyToManyField(Hobby, related_name="competition_hobby")
+    name = models.TextField()
+    details = JSONField(default=dict)
+    user_host = models.ForeignKey(Account, related_name='competition_user_host', default='')
+    is_public_competition = models.BooleanField(default=True)
+    posts = models.ManyToManyField(Post, related_name='competition_posts', blank=True)
+    banned_users = ArrayField(models.CharField(max_length=22), default=list)
+    banned_posts = ArrayField(models.CharField(max_length=22), default=list)
+
+    def append_post(self, post: Post):
+        if post.post_id not in self.banned_posts and post.account.account_id not in self.banned_users:
+            self.posts.add(post)
+
+    def ban_user(self, account_id: str):
+        if account_id not in self.banned_users:
+            self.banned_users.append(account_id)
+            self.save()
+
+    def ban_post(self, post: Post):
+        if post.post_id not in self.banned_posts:
+            self.banned_posts.append(post.post_id)
+            self.save()
+
+
 
 
 
