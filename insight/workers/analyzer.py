@@ -19,7 +19,7 @@ class Analyzer(AnalyzerInterface):
     @staticmethod
     def calculate_freshness_score(post: Post) -> float:
         diff = get_ist() - post.created_at
-        return 2 * math.exp(-diff.days / 4) + 0.8
+        return (2 * math.exp(-diff.days / 4)) + 0.8
 
     @staticmethod
     def audit_post_counts(post: Post, after=None) -> dict:
