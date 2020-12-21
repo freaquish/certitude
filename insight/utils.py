@@ -2,6 +2,7 @@ from django.contrib.gis.geos.point import Point
 from datetime import datetime, date, time, timedelta
 from secrets import token_urlsafe
 from pytz import timezone
+import pickle
 
 
 def distance(coorda: Point, coordb: Point):
@@ -58,3 +59,13 @@ def next_sunday(today: datetime):
 
 def last_monday(today: datetime):
     return today - timedelta(days=today.weekday())
+
+
+def store_data(name: str, data):
+    with open(name, 'wb') as f:
+        pickle.dump(data, f)
+
+
+def restore_data(name: str):
+    with open(name, 'rb') as f:
+        return pickle.load(f)

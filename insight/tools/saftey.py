@@ -1,5 +1,5 @@
 from celery import shared_task
-from insight.models import Post, Tags 
+from insight.models import Post, Tags
 from django.db.models import Q
 
 

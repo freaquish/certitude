@@ -5,6 +5,7 @@ from django.contrib.gis.db import models as gis_models
 # from django.contrib.gis.geos.point import Point
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
+from django.db.models import QuerySet
 from djongo import models as mongo_models
 
 from .utils import *
@@ -160,26 +161,102 @@ class Post(models.Model):
     hobby = models.ForeignKey(Hobby, on_delete=models.CASCADE, default='')
     assets = JSONField(default=dict)
     caption = models.TextField()
-    hastags = ArrayField(models.CharField(max_length=20), default=list)
-    atags = ArrayField(models.CharField(max_length=20), default=list)
     hash_tags = models.ManyToManyField(Tags, blank=True, related_name='hash_tags_post', default='')
     a_tags = models.ManyToManyField(Tags, blank=True, related_name='a_tags_post', default='')
     coordinates = gis_models.PointField(
         Point(0, 0, srid=4326), srid=4326, blank=True, null=True)
     action_count = JSONField(default=dict)
-    views = models.ManyToManyField(Account, blank=True, related_name='views_post', default='')
-    loves = models.ManyToManyField(Account, blank=True, related_name='loves_post', default='')
-    shares = models.ManyToManyField(Account, blank=True, related_name='shares_post', default='')
-    up_votes = models.ManyToManyField(Account, blank=True, related_name='up_votes_post', default='')
-    down_votes = models.ManyToManyField(Account, blank=True, related_name='down_votes_post', default='')
-    comments = models.ManyToManyField(UserPostComment, blank=True, related_name='comments_post', default='')
+    views = models.ManyToManyField(Account, blank=True,
+                                   related_name='views_post', default='')
+    loves = models.ManyToManyField(Account,  blank=True,
+                                   related_name='loves_post', default='')
+    shares = models.ManyToManyField(Account,  blank=True,
+                                    related_name='shares_post', default='')
+    up_votes = models.ManyToManyField(Account,  blank=True,
+                                      related_name='up_votes_post', default='')
+    down_votes = models.ManyToManyField(Account, blank=True,
+                                        related_name='down_votes_post', default='')
+    comments = models.ManyToManyField(UserPostComment, blank=True,
+                                      related_name='comments_post', default='')
     score = models.DecimalField(max_digits=7, decimal_places=4, default=0.0)
     freshness_score = models.DecimalField(max_digits=7, decimal_places=4, default=0.0)
     net_score = models.DecimalField(max_digits=7, decimal_places=4, default=0.0)
     last_modified = models.DateTimeField(default=get_ist())
+    used_in_competition = models.BooleanField(default=False)
+    last_validity = models.DateTimeField(default=get_ist())
     created_at = models.DateTimeField(default=get_ist())
     rank = models.IntegerField(default=0)
     is_global = models.BooleanField(default=True)
+
+
+class InsightPostDownVotes(models.Model):
+    post = models.ForeignKey(Post, models.DO_NOTHING)
+    account = models.ForeignKey(Account, models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'insight_post_down_votes'
+        unique_together = (('post', 'account'),)
+
+
+class InsightPostUpVotes(models.Model):
+    post = models.ForeignKey(Post, models.DO_NOTHING)
+    account = models.ForeignKey(Account, models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'insight_post_up_votes'
+        unique_together = (('post', 'account'),)
+
+
+class InsightPostViews(models.Model):
+    post = models.ForeignKey(Post, models.DO_NOTHING)
+    account = models.ForeignKey(Account, models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'insight_post_views'
+        unique_together = (('post', 'account'),)
+
+
+class LoveActionModel(models.Model):
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('account', 'post')
+
+
+class ViewActionModel(models.Model):
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('account', 'post')
+
+
+class ShareActionModel(models.Model):
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('account', 'post')
+
+
+class UpVoteActionModel(models.Model):
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('account', 'post')
+
+
+class DownVoteActionModel(models.Model):
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('account', 'post')
 
 
 class Places(models.Model):
@@ -209,11 +286,6 @@ class Scoreboard(models.Model):
     retention = models.DecimalField(max_digits=9, decimal_places=5, default=0.0)
 
 
-class CompetitionManager(models.Manager):
-
-    def add_post(self, post: Post, *comp):
-
-
 class Competition(models.Model):
     key = models.CharField(max_length=27, primary_key=True, db_index=True)
     tag = models.TextField(unique=True, db_index=True)
@@ -225,14 +297,15 @@ class Competition(models.Model):
     hobbies = models.ManyToManyField(Hobby, related_name="competition_hobby")
     name = models.TextField()
     details = JSONField(default=dict)
-    user_host = models.ForeignKey(Account, related_name='competition_user_host', default='')
+    user_host = models.ForeignKey(Account, related_name='competition_user_host', default='', on_delete=models.CASCADE)
+    judged_by_user = models.BooleanField(default=False)
     is_public_competition = models.BooleanField(default=True)
     posts = models.ManyToManyField(Post, related_name='competition_posts', blank=True)
     banned_users = ArrayField(models.CharField(max_length=22), default=list)
     banned_posts = ArrayField(models.CharField(max_length=22), default=list)
 
     def append_post(self, post: Post):
-        if post.post_id not in self.banned_posts and post.account.account_id not in self.banned_users:
+        if post.post_id not in self.banned_posts and post.account_id not in self.banned_users:
             self.posts.add(post)
 
     def ban_user(self, account_id: str):
@@ -246,9 +319,6 @@ class Competition(models.Model):
             self.save()
 
 
-
-
-
 """
 Mongo Database Models 
 """
@@ -258,6 +328,7 @@ class TextData(mongo_models.Model):
     text = mongo_models.TextField()
 
     class Meta:
+        required_db_vendor = 'insight_story'
         abstract = True
 
 
@@ -266,6 +337,7 @@ class CoordinatesData(mongo_models.Model):
     y = mongo_models.DecimalField(default=0.0, max_digits=8, decimal_places=6)
 
     class Meta:
+        required_db_vendor = 'insight_story'
         abstract = True
 
 
@@ -273,6 +345,7 @@ class JsonData(mongo_models.Model):
     data = mongo_models.JSONField()
 
     class Meta:
+        required_db_vendor = 'insight_story'
         abstract = True
 
 
@@ -292,12 +365,31 @@ class DataLog(mongo_models.Model):
         required_db_vendor = 'insight_story'
 
 
-class RankReport(mongo_models.Model):
-    user_id = models.CharField(max_length=50, default='')
-    date = mongo_models.DateField()
+class RankBranch(mongo_models.Model):
     rank = mongo_models.IntegerField()
     score = mongo_models.DecimalField(max_digits=8, decimal_places=4)
+    logged_on = mongo_models.DateTimeField(default=get_ist())
+
+    class Meta:
+        required_db_vendor = 'insight_story'
+        abstract = True
+
+
+class RankReport(mongo_models.Model):
+    """
+    Structure to trace change in rank and position in a competition
+    RankReport will stop logging after crossing expiry date
+    Expiry date will be updated if result date of competition is changed
+    """
+    user_id = models.CharField(max_length=50, default='')
+    created = mongo_models.DateTimeField(default=get_ist())
+    tree = mongo_models.ArrayField(model_container=RankBranch, null=True)
+    current_rank = mongo_models.IntegerField()
+    current_score = mongo_models.DecimalField(max_digits=8, decimal_places=4)
     total_pax = mongo_models.IntegerField()
+    competition_key = mongo_models.TextField(default='')
+    alive_from = mongo_models.DateTimeField(default=get_ist())
+    expiry = mongo_models.DateTimeField(default=get_ist())
 
     objects = mongo_models.DjongoManager()
 

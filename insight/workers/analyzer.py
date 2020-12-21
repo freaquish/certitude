@@ -95,6 +95,31 @@ class Analyzer(AnalyzerInterface):
             self.user.primary_hobby = report.hobby.code_name
             self.user.save()
 
+    def manage_rank_report(self, competition_id: str, user_id: str, post: Post):
+        """
+        Updates rank report
+        """
+        reports: QuerySet = RankReport.objects.filter(Q(competition_key=competition_id))
+        if not reports.exists():
+            return None
+        user_report_set: QuerySet = reports.first(user_id=post.account_id)
+        if not user_report_set.exists():
+            return None
+        # Case of self voting
+        if self.user.account_id == user_id:
+            return None
+        report: RankReport = user_report_set.first()
+        today = datetime.now().astimezone(report.expiry.tzinfo)
+        if today > report.expiry or today < report.alive_from:
+            return None
+        report.current_score = post.score
+        report.tree.append({
+            "score": report.current_score,
+            "logged_on": today
+        })
+
+
+
     @staticmethod
     @shared_task
     def background_task(user_id: str, post_id: str, created: bool = False, *count, **kwargs) -> None:
