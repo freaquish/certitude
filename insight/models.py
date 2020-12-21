@@ -166,15 +166,15 @@ class Post(models.Model):
     coordinates = gis_models.PointField(
         Point(0, 0, srid=4326), srid=4326, blank=True, null=True)
     action_count = JSONField(default=dict)
-    views = models.ManyToManyField(Account, blank=True,
+    views = models.ManyToManyField(Account, through='ViewActionModel', blank=True,
                                    related_name='views_post', default='')
-    loves = models.ManyToManyField(Account,  blank=True,
+    loves = models.ManyToManyField(Account, through='LoveActionModel', blank=True,
                                    related_name='loves_post', default='')
-    shares = models.ManyToManyField(Account,  blank=True,
+    shares = models.ManyToManyField(Account, through='ShareActionModel', blank=True,
                                     related_name='shares_post', default='')
-    up_votes = models.ManyToManyField(Account,  blank=True,
+    up_votes = models.ManyToManyField(Account, through='UpVoteActionModel', blank=True,
                                       related_name='up_votes_post', default='')
-    down_votes = models.ManyToManyField(Account, blank=True,
+    down_votes = models.ManyToManyField(Account, through='DownVoteActionModel', blank=True,
                                         related_name='down_votes_post', default='')
     comments = models.ManyToManyField(UserPostComment, blank=True,
                                       related_name='comments_post', default='')
@@ -189,74 +189,49 @@ class Post(models.Model):
     is_global = models.BooleanField(default=True)
 
 
-class InsightPostDownVotes(models.Model):
-    post = models.ForeignKey(Post, models.DO_NOTHING)
-    account = models.ForeignKey(Account, models.DO_NOTHING)
-
-    class Meta:
-        managed = False
-        db_table = 'insight_post_down_votes'
-        unique_together = (('post', 'account'),)
-
-
-class InsightPostUpVotes(models.Model):
-    post = models.ForeignKey(Post, models.DO_NOTHING)
-    account = models.ForeignKey(Account, models.DO_NOTHING)
-
-    class Meta:
-        managed = False
-        db_table = 'insight_post_up_votes'
-        unique_together = (('post', 'account'),)
-
-
-class InsightPostViews(models.Model):
-    post = models.ForeignKey(Post, models.DO_NOTHING)
-    account = models.ForeignKey(Account, models.DO_NOTHING)
-
-    class Meta:
-        managed = False
-        db_table = 'insight_post_views'
-        unique_together = (('post', 'account'),)
-
-
 class LoveActionModel(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    created = models.DateTimeField(auto_now=get_ist())
 
     class Meta:
-        unique_together = ('account', 'post')
+        unique_together = (('account', 'post'),)
 
 
 class ViewActionModel(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    created = models.DateTimeField(auto_now=get_ist())
 
     class Meta:
-        unique_together = ('account', 'post')
+        unique_together = (('account', 'post'),)
 
 
 class ShareActionModel(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    created = models.DateTimeField(auto_now=get_ist())
 
     class Meta:
-        unique_together = ('account', 'post')
+        unique_together = (('account', 'post'),)
 
 
 class UpVoteActionModel(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    created = models.DateTimeField(auto_now=get_ist())
 
     class Meta:
-        unique_together = ('account', 'post')
+        unique_together = (('account', 'post'),)
 
 
 class DownVoteActionModel(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    created = models.DateTimeField(auto_now=get_ist())
 
     class Meta:
-        unique_together = ('account', 'post')
+        unique_together = (('account', 'post'),)
 
 
 class Places(models.Model):

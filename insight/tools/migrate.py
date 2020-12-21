@@ -63,6 +63,18 @@ def migrate_scoreboard():
         scoreboard.save()
 
 
+def migration_actions():
+    posts: QuerySet = Post.objects.prefetch_related('loves', 'views', 'shares').all()
+    for post in posts.iterator():
+        LoveActionModel.objects.bulk_create(
+            [LoveActionModel(account=account, post=post) for account in post.loves.all()]
+        )
+        ViewActionModel.objects.bulk_create(
+            [ViewActionModel(account=account, post=post) for account in post.views.all()]
+        )
+        ShareActionModel.objects.bulk_create(
+            [ShareActionModel(account=account, post=post) for account in post.shares.all()]
+        )
 
 
 
