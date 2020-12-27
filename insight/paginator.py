@@ -31,7 +31,6 @@ class DiscoverPaginator(CursorPagination):
     ordering = 'action_score', 'f_score'
 
     def get_paginated_response(self, data):
-        print(len(data))
         next_link = self.get_next_link()
         if next_link is not None:
             next_link = next_link[next_link.index('?'):len(next_link)]
@@ -42,5 +41,9 @@ class DiscoverPaginator(CursorPagination):
             },
             'posts': data,
         })
+
+
+class CompetitionFeedPaginator(FeedPaginator):
+    ordering = '-score', 'viewed'
 
 

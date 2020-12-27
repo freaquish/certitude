@@ -6,4 +6,4 @@ def cases_path(path: str):
 
 
 def cases_json(path: str):
-    return json.load(open(f'insight/tests/test_cases/{path}'))
+    return json.load(open(f'insight/tests/fixtures/{path}'))

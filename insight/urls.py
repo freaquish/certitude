@@ -25,4 +25,5 @@ urlpatterns = [
     path('search/', include('insight.search.urls')),
     path('leaderboard/', include('insight.leaderboard.urls')),
     path('community/', include('insight.community.urls')),
+    path('competition/', include('insight.competitions.urls'))
 ]

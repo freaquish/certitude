@@ -8,7 +8,9 @@ import math
 from insight.models import *
 from insight.workers.interface import AnalyzerInterface
 from celery import shared_task
-from insight.utils import next_sunday, last_monday
+from insight.utils import next_sunday
+from insight.competitions.main import RankReportManager
+from rest_framework.authtoken.models import Token
 from django.db.models import Q, QuerySet, ExpressionWrapper, F, DecimalField
 from math import log
 
@@ -49,14 +51,15 @@ class Analyzer(AnalyzerInterface):
     def score_post(self, counts: dict, for_comp=False) -> float:
         score: float = (self.WEIGHT_LOVE * counts['love']) + (self.WEIGHT_VIEW * counts['view']) + \
                        (self.WEIGHT_SHARE * counts['share'])
-        if for_comp:
-            score += (self.WEIGHT_UP_VOTE * counts['up_vote']) + (self.WEIGHT_DOWN_VOTE * counts['down_vote'])
+        score += (self.WEIGHT_UP_VOTE * counts['up_vote']) - (self.WEIGHT_DOWN_VOTE * counts['down_vote'])
 
         return score * 0.01
 
-    def manage_score_post(self, post: Post, is_new: bool = False, after: datetime = None):
+    def manage_score_post(self, post: Post, is_new: bool = False, after: datetime = None, view_action: bool = False):
         post.freshness_score = self.calculate_freshness_score(post)
         post.score = self.score_post(self.audit_post_counts(post))
+        if view_action:
+            post.score -= self.WEIGHT_LOVE/2
         post.net_score = post.freshness_score + post.score
         post.last_modified = get_ist()
         post.save()
@@ -95,30 +98,24 @@ class Analyzer(AnalyzerInterface):
             self.user.primary_hobby = report.hobby.code_name
             self.user.save()
 
-    def manage_rank_report(self, competition_id: str, user_id: str, post: Post):
-        """
-        Updates rank report
-        """
-        reports: QuerySet = RankReport.objects.filter(Q(competition_key=competition_id))
-        if not reports.exists():
+    @staticmethod
+    @shared_task
+    def log_data(path: str, header: dict, body):
+        if 'HTTP_AUTHORIZATION' not in header:
             return None
-        user_report_set: QuerySet = reports.first(user_id=post.account_id)
-        if not user_report_set.exists():
+        tokens: QuerySet = Token.objects.filter(key=header['HTTP_AUTHORIZATION'].replace("Token ", ""))
+        if not tokens.exists():
             return None
-        # Case of self voting
-        if self.user.account_id == user_id:
-            return None
-        report: RankReport = user_report_set.first()
-        today = datetime.now().astimezone(report.expiry.tzinfo)
-        if today > report.expiry or today < report.alive_from:
-            return None
-        report.current_score = post.score
-        report.tree.append({
-            "score": report.current_score,
-            "logged_on": today
-        })
-
-
+        user: Account = tokens.first().user
+        data_logs: QuerySet = DataLog.objects.filter(user_id=user.account_id)
+        data_log: DataLog = None
+        if data_logs.exists():
+            data_log = data_logs.first()
+        else:
+            data_log = DataLog(user_id=user.account_id, created_at=get_ist(),)
+        data_log.logs.append({"header": {}, "body": body, "process": path})
+        data_log.save()
+        return None
 
     @staticmethod
     @shared_task
@@ -143,5 +140,6 @@ class Analyzer(AnalyzerInterface):
         self.background_task.delay(self.user.account_id, post.post_id, post=1),
 
     def analyze_post_action(self, post: Post, for_test: bool = False, **actions):
-        self.manage_score_post(post)
+        self.manage_score_post(post, view_action='view' in actions)
+        RankReportManager.update_score()
         self.background_task.delay(self.user.account_id, post.post_id, **actions)

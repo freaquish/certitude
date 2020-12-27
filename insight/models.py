@@ -181,12 +181,65 @@ class Post(models.Model):
     score = models.DecimalField(max_digits=7, decimal_places=4, default=0.0)
     freshness_score = models.DecimalField(max_digits=7, decimal_places=4, default=0.0)
     net_score = models.DecimalField(max_digits=7, decimal_places=4, default=0.0)
-    last_modified = models.DateTimeField(default=get_ist())
     used_in_competition = models.BooleanField(default=False)
     last_validity = models.DateTimeField(default=get_ist())
+    alive_from = models.DateTimeField(default=get_ist())
     created_at = models.DateTimeField(default=get_ist())
-    rank = models.IntegerField(default=0)
     is_global = models.BooleanField(default=True)
+
+    def __getitem__(self, item):
+        return getattr(self, item, None)
+
+    def add(self, key, value):
+        if key in ['views', 'loves', 'shares', 'up_votes', 'down_votes']:
+            self[key].through.objects.bulk_create(post_id=self.post_id,
+                                                  account_id=value.account.account_id if isinstance(value,
+                                                                                                    Account) else value)
+
+    def view_add(self, *value):
+        self.views.through.objects.bulk_create(
+            [ViewActionModel(post_id=self.post_id,
+                             account_id=val.account.account_id if isinstance(val, Account) else val) for val in value])
+
+    def love_add(self, *value):
+        self.loves.through.objects.bulk_create(
+            [LoveActionModel(post_id=self.post_id,
+                             account_id=val.account.account_id if isinstance(val, Account) else val) for val in value])
+
+    def share_add(self, *value):
+        self.shares.through.objects.bulk_create(
+            [ShareActionModel(post_id=self.post_id,
+                              account_id=val.account.account_id if isinstance(val, Account) else val) for val in value])
+
+    def up_vote_add(self, *value):
+        self.up_votes.through.objects.bulk_create(
+            [UpVoteActionModel(post_id=self.post_id,
+                               account_id=val.account.account_id if isinstance(val, Account) else val) for val in
+             value])
+
+    def down_vote_add(self, *value):
+        self.down_votes.through.objects.bulk_create(
+            [DownVoteActionModel(post_id=self.post_id,
+                                 account_id=val.account.account_id if isinstance(val, Account) else val) for val in
+             value])
+
+    def filter(self, **kwargs):
+        data = {}
+        g_key = None
+        refs = {"views": "viewactionmodel", "loves": "loveactionmodel", "shares": "shareactionmodel",
+                "up_votes": "upvoteactionmodel", "down_votes": "downvoteactionmodel"}
+        keys = refs.keys()
+        for key, value in kwargs.items():
+            args = key.split('__')
+            if args[0] in keys:
+                if g_key is None:
+                    g_key = args[0]
+                elif g_key != args[0]:
+                    continue
+                data[key.replace(g_key, refs[g_key])] = value
+            else:
+                data[key] = value
+        return self[g_key].filter(**data) if g_key else None
 
 
 class LoveActionModel(models.Model):
@@ -273,6 +326,7 @@ class Competition(models.Model):
     name = models.TextField()
     details = JSONField(default=dict)
     user_host = models.ForeignKey(Account, related_name='competition_user_host', default='', on_delete=models.CASCADE)
+    # Judged by the hosts
     judged_by_user = models.BooleanField(default=False)
     is_public_competition = models.BooleanField(default=True)
     posts = models.ManyToManyField(Post, related_name='competition_posts', blank=True)
@@ -292,6 +346,24 @@ class Competition(models.Model):
         if post.post_id not in self.banned_posts:
             self.banned_posts.append(post.post_id)
             self.save()
+
+
+class RankReport(models.Model):
+    """
+    Structure to trace change in rank and position in a competition
+    RankReport will stop logging after crossing expiry date
+    Expiry date will be updated if result date of competition is changed
+    Currently using postgres but plans to use mongo
+    """
+    user = models.ForeignKey(Account, on_delete=models.CASCADE, default='', related_name='competition_user')
+    created = models.DateTimeField(default=get_ist())
+    tree = ArrayField(JSONField(), default=list)
+    current_rank = models.IntegerField(default=0)
+    current_score = models.DecimalField(max_digits=8, decimal_places=4)
+    competition_key = models.TextField(default='')
+    alive_from = models.DateTimeField(default=get_ist())
+    expiry = models.DateTimeField(default=get_ist())
+    result_declared = models.BooleanField(default=False)
 
 
 """
@@ -324,15 +396,20 @@ class JsonData(mongo_models.Model):
         abstract = True
 
 
+class LogJsonData(mongo_models.Model):
+    header = mongo_models.JSONField(default=dict)
+    body = mongo_models.TextField()
+    process = mongo_models.TextField()
+
+    class Meta:
+        required_db_vendor = 'insight_story'
+        abstract = True
+
+
 class DataLog(mongo_models.Model):
-    log_type = mongo_models.CharField(max_length=10)
-    user_id = mongo_models.TextField(default='')
-    created_at = mongo_models.DateField()
-    searched_text = mongo_models.ArrayField(model_container=TextData)
-    coordinates = mongo_models.ArrayField(model_container=CoordinatesData)
-    headers = mongo_models.ArrayField(model_container=JsonData)
-    logs = mongo_models.ArrayField(model_container=TextData)
-    process = mongo_models.ArrayField(model_container=TextData)
+    user_id = mongo_models.TextField(default='', primary_key=True)
+    created_at = mongo_models.DateField(default=get_ist())
+    logs = mongo_models.ArrayField(model_container=LogJsonData, default=list)
 
     objects = mongo_models.DjongoManager()
 
@@ -348,28 +425,6 @@ class RankBranch(mongo_models.Model):
     class Meta:
         required_db_vendor = 'insight_story'
         abstract = True
-
-
-class RankReport(mongo_models.Model):
-    """
-    Structure to trace change in rank and position in a competition
-    RankReport will stop logging after crossing expiry date
-    Expiry date will be updated if result date of competition is changed
-    """
-    user_id = models.CharField(max_length=50, default='')
-    created = mongo_models.DateTimeField(default=get_ist())
-    tree = mongo_models.ArrayField(model_container=RankBranch, null=True)
-    current_rank = mongo_models.IntegerField()
-    current_score = mongo_models.DecimalField(max_digits=8, decimal_places=4)
-    total_pax = mongo_models.IntegerField()
-    competition_key = mongo_models.TextField(default='')
-    alive_from = mongo_models.DateTimeField(default=get_ist())
-    expiry = mongo_models.DateTimeField(default=get_ist())
-
-    objects = mongo_models.DjongoManager()
-
-    class Meta:
-        required_db_vendor = 'insight_story'
 
 
 class HobbyNearest(mongo_models.Model):

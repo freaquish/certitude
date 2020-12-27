@@ -4,6 +4,7 @@ from django.db.models import Q, QuerySet
 from insight.workers.interface import PostCreationInterface
 from insight.workers.analyzer import Analyzer
 from celery import shared_task
+from insight.competitions.main import CompetitionManager
 
 
 class PostCreationManager(PostCreationInterface):
@@ -11,6 +12,8 @@ class PostCreationManager(PostCreationInterface):
     analyzer = None
     hash_tags = []
     a_tags = []
+    competition_manager = None
+    competitions = None
 
     def render_data(self) -> dict:
         # print(self.map('hobby'))
@@ -35,13 +38,26 @@ class PostCreationManager(PostCreationInterface):
         # print('Inside render data', data)
         return data
 
+    def before_creation(self, **data):
+        """
+        Certain operations required to be called before post creations
+        """
+        self.competition_manager: CompetitionManager = CompetitionManager(self.user)
+        self.competitions, dates = self.competition_manager.submittable_competitions(**data)
+        data.update(dates)
+        return data
+
     def create_post(self):
         data: dict = self.render_data()
-        print(data)
         if data is None:
             return data
-        self.post: Post = Post.objects.create(**data)
-        self.after_creation()
+        try:
+            if 'competition_tags' in data and len(data['competition_tags']) > 0:
+                data = self.before_creation(**data)
+            self.post: Post = Post.objects.create(**data)
+            self.after_creation()
+        except AssertionError:
+            return None
 
     @staticmethod
     def sanitize_tag(tag: str) -> str:
@@ -78,9 +94,18 @@ class PostCreationManager(PostCreationInterface):
             return None
         return None
 
+    def attach_to_competition(self):
+        """
+        Attach the post to competition by calling  add_post method from competition manager
+        """
+        if self.competition_manager is None or self.competitions is None or not self.competitions.exists():
+            return None
+        self.competition_manager.add_post(self.post, self.competitions)
+
     def after_creation(self):
         if self.post is None:
             return None
         self.create_tag()
+        self.attach_to_competition()
         self.analyzer = Analyzer(self.post.account)
         self.analyzer.analyzer_create_post(self.post)
