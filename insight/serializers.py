@@ -48,21 +48,29 @@ class PostSerializer:
         if self.user and not isinstance(self.user, AnonymousUser) and (post.account == self.user or post.account.account_id in self.user.following):
             data['header']['following'] = 1
         data["caption"] = post.caption
+        data["actions_allowed"] = 1
+        if post.used_in_competition and (post.alive_from >= get_ist() or get_ist() >= post.last_validity):
+            data["actions_allowed"] = 0
         data["footer"]["action_map"] = {
             "view": post.views.count(),
             "love": post.loves.count(),
             "share": post.shares.count(),
-            "comment": post.comments.count()
+            "comment": post.comments.count(),
+            "up_votes": post.up_votes.count(),
+            "down_votes": post.down_votes.count(),
         }
         data["meta"]["actions"] = {"viewed": 0, "loved": 0, "shared": 0}
+        data["meta"]["arrow_votes"] = 0
+        if hasattr(post, 'is_host') and getattr(post, "is_host") >= 1:
+            data["meta"]["arrow_votes"] = 1
         if hasattr(post, "current_score"):
             data['meta']['current_score'] = post.current_score
         if hasattr(post, "hobby_score"):
             data["meta"]["hobby_score"] = post.hobby_score
         if not isinstance(self.user, AnonymousUser):
-            data["meta"]["actions"]["viewed"] = 1 if post.views.filter(account_id=self.user.account_id).exists() else 0
-            data["meta"]["actions"]["loved"] = 1 if post.loves.filter(account_id=self.user.account_id).exists() else 0
-            data["meta"]["actions"]["shared"] = 1 if post.shares.filter(account_id=self.user.account_id).exists() else 0
+            data["meta"]["actions"]["viewed"] = 1 if post.filter(views__account_id=self.user.account_id).exists() else 0
+            data["meta"]["actions"]["loved"] = 1 if post.filter(loves__account_id=self.user.account_id).exists() else 0
+            data["meta"]["actions"]["shared"] = 1 if post.filter(shares__account_id=self.user.account_id).exists() else 0
         return data
 
     def render(self):

@@ -1,9 +1,8 @@
-from insight.models import *
-from django.db.models import Q, QuerySet, F, CharField, Value
+from django.db.models import Q, F, CharField, Value
 from django.db.models.functions import Concat
-from insight.serializers import *
-from fuzzywuzzy import fuzz
+from insight.models import *
 from insight.database.postgres import Levenshtein
+from insight.serializers import *
 
 """
  search atags : Post containing atags, Account, community, competition related with query

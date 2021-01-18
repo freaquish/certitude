@@ -1,4 +1,4 @@
-from insight.models import Post, Account, UserPostComment
+from insight.models import Post, Account, UserPostComment, LoveActionModel, ViewActionModel, ShareActionModel
 from insight.utils import get_ist
 from insight.workers.analyzer import Analyzer
 
@@ -34,16 +34,10 @@ class PostActions:
     def commit_action(self, action, user_comment: UserPostComment = None):
         if action == 'viewed':
             return False
-        if action == 'view':
-            self.post.views.add(self.user)
-        elif action == 'love':
-            self.post.loves.add(self.user)
-        elif action == 'un_love':
-            self.post.loves.remove(self.user)
-        elif action == 'share':
-            self.post.shares.add(self.user)
         elif action == 'comment' and user_comment:
             self.post.comments.add(user_comment)
+        else:
+            self.post.add(f'{action}s', self.user)
         return True
 
     def micro_action(self, action, val='', for_test: bool = False):
