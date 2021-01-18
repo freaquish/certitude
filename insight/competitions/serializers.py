@@ -1,5 +1,6 @@
-from insight.models import Account, RankReport, Competition
+from insight.models import Account, RankReport, Competition, get_ist
 from django.db.models import QuerySet
+from insight.competitions.main import CompetitionManager
 
 
 class CompetitionLeaderboardSerializer:
@@ -41,7 +42,13 @@ class CompetitionSearchSerializer:
             "name": competition.name,
             "avatar": competition.images[0],
             "is_host": 1 if self.user is not None and competition.user_host_id == self.user.account_id else 0,
-            "post_count": competition.post_count
+            "post_count": competition.post_count,
+            "participated":  1 if hasattr(competition, "participated") and competition.participated >= 1 else 0,
+            "is_live": 1 if competition.result >= get_ist() else 0,
+            "is_accepting_participation": 1 if competition.end >= get_ist() else 0,
+            "start": competition.strftime(CompetitionManager.format()),
+            "end": competition.strftime(CompetitionManager.format()),
+            "result": competition.strftime(CompetitionManager.format())
         }
 
     def render(self):

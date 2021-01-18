@@ -9,6 +9,7 @@ from typing import List, Dict
 import json
 from insight.utils import get_ist
 from insight.database.postgres import Levenshtein
+from django.urls import reverse
 from insight.serializers import PostSerializer
 from celery import shared_task
 
@@ -154,7 +155,11 @@ class CompetitionManager:
     def __init__(self, account: Account):
         self.user: Account = account
         self.hobbies: QuerySet = None
-        self.dt_format: str = "%d-%m-%Y %H:%M:%S"
+        self.dt_format: str = "%d-%m-%Y %H:%M:%S %z"
+
+    @staticmethod
+    def format():
+        return "%d-%m-%Y %H:%M:%S"
 
     def submittable_competitions(self, **kwargs) -> [QuerySet, Dict]:
         """
@@ -190,10 +195,10 @@ class CompetitionManager:
         Generates tab url using reverse for accessing competition and tab
         TODO: Need to write this after we write tab switch view
         """
-        pass
+        return f'competition/views/{competition_tag}?tab={tab}'
 
     def view(self, tag: str, **kwargs):
-        competitions: QuerySet = Competition.objects.prefetch_related('posts') \
+        competitions: QuerySet = Competition.objects.prefetch_related('posts', 'hobbies') \
             .select_related('user_post').filter(tag=tag)
         if not competitions.exists():
             raise Exception("Competition does not exist.")
@@ -207,9 +212,13 @@ class CompetitionManager:
             },
             "start": self.competition.start.strftime(self.dt_format),
             "end": self.competition.end.strftime(self.dt_format),
+            "tag": self.competition.tag,
+            "name": self.competition.name,
+            "images": self.competition.images,
             "result": self.competition.result.strftime(self.dt_format),
             "is_ended": True if today > self.competition.end else False,
             "is_finished": True if today > self.competition.result else False,
+            "is_host": 1 if isinstance(self.user, Account) and self.competition.user_host_id == self.user.account_id else 0
         })
         body, tab = {}, None
         if "tab" in kwargs:
@@ -259,7 +268,7 @@ class CompetitionManager:
             "avatar": competition.user_host.avatar,
             "username": competition.user_host.username,
             "name": competition.user_host.first_name + " " + competition.user_host.last_name,
-        }, "images": competition.images}
+        }, "hobbies": [hobby.name for hobby in competition.hobbies.all().iterator()]}
         return data
 
     @staticmethod
@@ -275,11 +284,11 @@ class CompetitionManager:
 
     @staticmethod
     def key_generator():
-        return token_urlsafe(22)
+        return token_urlsafe(20)
 
     @staticmethod
     def get_date_time(date_time: datetime):
-        return datetime(datetime.year, datetime.month, datetime.day, hour=12, tzinfo=date_time.tzinfo)
+        return datetime  # datetime(datetime.year, datetime.month, datetime.day, hour=12, minute=0, second=0).astimezone(datetime.tzinfo)
 
     def sanitize(self, **kwargs) -> dict:
         """
@@ -298,12 +307,18 @@ class CompetitionManager:
             data["is_public_competition"] = True
 
         tz_info = get_ist().tzinfo
-        data['start'] = self.get_date_time(datetime.strptime(kwargs['start'], self.dt_format).astimezone(tz_info))
-        data['end'] = self.get_date_time(datetime.strptime(kwargs['end'], self.dt_format).astimezone(tz_info))
-        data['result'] = self.get_date_time(datetime.strptime(kwargs['result'], self.dt_format).astimezone(tz_info))
-        if not data['start'] < data['end'] and data['end'] < data['result']:
+        start = datetime.strptime(kwargs['start'], self.dt_format).astimezone(tz_info)
+
+        end = datetime.strptime(kwargs['end'], self.dt_format).astimezone(tz_info)
+        result = datetime.strptime(kwargs['result'], self.dt_format).astimezone(tz_info)
+        print(end-start)
+        if not (start < end < result):
             raise AttributeError('Time constraints are not valid.')
+        data['start'] = start
+        data['end'] = end
+        data['result'] = result
         self.hobbies: QuerySet = Hobby.objects.filter(code_name__in=data['hobbies'])
+
         if not self.hobbies.exists():
             raise ValueError("At least 1 hobby is required.")
         del data['hobbies']
@@ -314,13 +329,14 @@ class CompetitionManager:
 
     def create(self, **kwargs) -> Competition:
         data: dict = self.sanitize(**kwargs)
+        print(data)
         tags: QuerySet = Tags.objects.filter(tag=data['tag'])
         if tags.exists():
             raise Exception("Tag already exist")
+        competition: Competition = Competition.objects.create(**data)
         tag: Tags = Tags.objects.create(
-            tags=data['tag'], tag_type=HASH
+            tag=data['tag'], tag_type=HASH
         )
-        competition: Competition = Competition(**data)
         competition.hobbies.set(self.hobbies)
         return competition
 
@@ -500,7 +516,9 @@ class CompetitionSearch:
                 hobby_set: QuerySet = Hobby.object.all().values_list('code_name', flat=True)
             hobbies = hobby_set
         query = Q(hobbies__code_name__in=hobbies)
-        annotate = {"post_count": Count('posts')}
+        annotate = {"post_count": Count('posts'),
+                    "participated": Count("posts",
+                                          filter=Q(posts__account_id=self.data["other_user"] if "other_user" in self.data else self.user.account_id))}
         if "is_live" in self.data:
             query = query & Q(start__lte=today) & Q(result__gte=today)
         elif "is_submittable" in self.data:
@@ -510,22 +528,20 @@ class CompetitionSearch:
         elif "is_passed" in self.data:
             query = query & Q(result__lt=today)
         if "participated" in self.data:
-            user_id = self.user.account_id
-            if "other_user" in self.data:
-                user_id = self.data["other_user"]
-            query = query & Q(posts__account_id=user_id)
+            query = query & Q(participated__gte=1)
+        ordering = []
         if "tag" in self.data:
             annotate["tag_dist"] = Levenshtein("tag", self.data["tag"])
+            ordering.append('tag_dist')
         if "name" in self.data:
             annotate["name_dist"] = Levenshtein("name", self.data["name"])
-
-        ordering = []
+            ordering.append('name_dist')
         if "start" in self.data:
             ordering.append("-start" if self.data["start"] == 1 else "start")   # desc if 1
         elif "end" in self.data:
             ordering.append("-end" if self.data["end"] == 1 else "end")
-        competitions: QuerySet = Competition.objects.prefetch_related('posts').select_related('user_host').filter(query)\
-            .annotate(**annotate).order_by(*ordering)
+        competitions: QuerySet = Competition.objects.prefetch_related('posts').select_related('user_host')\
+            .annotate(**annotate).filter(query).order_by(*ordering)
         return competitions
 
 

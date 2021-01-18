@@ -56,7 +56,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'insight.middlewares.logger.DataLoggingMiddleware',
 ]
 AUTH_USER_MODEL = 'insight.Account'
 

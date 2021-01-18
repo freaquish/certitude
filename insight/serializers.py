@@ -75,7 +75,7 @@ class PostSerializer:
 
     def render(self):
         rendered = []
-        for post in self.posts.iterator():
+        for post in self.posts:
             serialise = self.serializer(post)
             if serialise is None:
                 continue

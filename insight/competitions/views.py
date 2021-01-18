@@ -81,7 +81,8 @@ class CreateCompetition(APIView):
             competition: Competition = manager.create(**data)
             response = Response({}, status=status.HTTP_201_CREATED)
         except Exception as e:
-            response = Response({"msg": e}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            raise e
+            response = Response({"msg": str(e)}, status=status.HTTP_406_NOT_ACCEPTABLE)
         return response
 
 

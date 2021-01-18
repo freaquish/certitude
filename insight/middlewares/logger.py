@@ -12,8 +12,10 @@ class DataLoggingMiddleware:
 
     def __call__(self, request):
         # Code executed before views
-        Analyzer.log_data.delay(request.path, {key: str(value) for key, value in request.META.items() if "." not in key},
-                                request.body if request.method == "POST" else json.dumps(request.GET.dict()))
+        # Analyzer.log_data.delay(request.path, {key: str(value) for key, value in request.META.items() if "." not in key},
+        #                         str(request.body) if request.method == "POST" else str(request.GET.dict()))
+        # print(str(request.body))
         response = self.get_response(request)
-        # Code executed after views
+        # # Code executed after views
         return response
+        # pass
