@@ -360,7 +360,7 @@ class PaginatedFeedView(GenericAPIView):
     def get(self, request):
         user = request.user
         valid = isinstance(user, Account)
-        if valid:
+        if valid and HobbyReport.objects.filter(account=user).exists():
             trends = Trends(user)
             self.queryset = trends.extract_queryset(trends.extract_trending_in_hobby_user())
         else:
