@@ -141,5 +141,5 @@ class Analyzer(AnalyzerInterface):
 
     def analyze_post_action(self, post: Post, for_test: bool = False, **actions):
         self.manage_score_post(post, view_action='view' in actions)
-        RankReportManager.update_score()
+        RankReportManager.update_score(post)
         self.background_task.delay(self.user.account_id, post.post_id, **actions)

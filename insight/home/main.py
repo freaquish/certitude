@@ -1,6 +1,7 @@
 from insight.models import Post, Account, UserPostComment, LoveActionModel, ViewActionModel, ShareActionModel
 from insight.utils import get_ist
 from insight.workers.analyzer import Analyzer
+from enum import Enum
 
 weights = {
     'love': 0.50,
@@ -8,6 +9,16 @@ weights = {
     'share': 0.65,
     'save': 0.60
 }
+
+
+class Actions(Enum):
+    Love = 'love'
+    Un_love = 'un_love'
+    View = 'view'
+    Share = 'share'
+    Up_vote = 'up_vote'
+    Down_vote = 'down_vote'
+    Comment = 'comment'
 
 
 class PostActions:
@@ -36,8 +47,14 @@ class PostActions:
             return False
         elif action == 'comment' and user_comment:
             self.post.comments.add(user_comment)
-        else:
-            self.post.add(f'{action}s', self.user)
+        elif isinstance(self.user, Account):
+            print(action == 'un_love', 'action')
+            if action == 'love' or action == 'un_love':
+                act = self.post.love_add(self.user.account_id)
+            elif action == 'view':
+                act = self.post.view_add(self.user.account_id)
+            elif action == 'share':
+                act = self.post.share_add(self.user.account_id)
         return True
 
     def micro_action(self, action, val='', for_test: bool = False):

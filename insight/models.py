@@ -5,7 +5,7 @@ from django.contrib.gis.db import models as gis_models
 # from django.contrib.gis.geos.point import Point
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Q
 from djongo import models as mongo_models
 
 from .utils import *
@@ -190,37 +190,37 @@ class Post(models.Model):
     def __getitem__(self, item):
         return getattr(self, item, None)
 
-    def add(self, key, value):
-        if key in ['views', 'loves', 'shares', 'up_votes', 'down_votes']:
-            self[key].through.objects.bulk_create(post_id=self.post_id,
-                                                  account_id=value.account.account_id if isinstance(value,
-                                                                                                    Account) else value)
-
     def view_add(self, *value):
+        new_users = set(value).difference(tuple(self.views.through.objects.filter(Q(account_id__in=value) &
+                                        Q(post_id=self.post_id)).values_list('account_id', flat=True)))
         self.views.through.objects.bulk_create(
             [ViewActionModel(post_id=self.post_id,
-                             account_id=val.account.account_id if isinstance(val, Account) else val) for val in value])
+                             account_id=val) for val in new_users])
 
     def love_add(self, *value):
+        users_in_db = self.loves.through.objects.filter(Q(account_id__in=value) & Q(post_id=self.post_id))
+        users_in_db_accounts = users_in_db.values_list('account_id', flat=True)
+        new_users = set(value).difference(tuple(users_in_db_accounts))
+        users_in_db.delete()
         self.loves.through.objects.bulk_create(
             [LoveActionModel(post_id=self.post_id,
-                             account_id=val.account.account_id if isinstance(val, Account) else val) for val in value])
+                             account_id=val) for val in new_users])
 
     def share_add(self, *value):
         self.shares.through.objects.bulk_create(
             [ShareActionModel(post_id=self.post_id,
-                              account_id=val.account.account_id if isinstance(val, Account) else val) for val in value])
+                              account_id=val) for val in value])
 
     def up_vote_add(self, *value):
         self.up_votes.through.objects.bulk_create(
             [UpVoteActionModel(post_id=self.post_id,
-                               account_id=val.account.account_id if isinstance(val, Account) else val) for val in
+                               account_id=val) for val in
              value])
 
     def down_vote_add(self, *value):
         self.down_votes.through.objects.bulk_create(
             [DownVoteActionModel(post_id=self.post_id,
-                                 account_id=val.account.account_id if isinstance(val, Account) else val) for val in
+                                 account_id=val) for val in
              value])
 
     def filter(self, **kwargs):
