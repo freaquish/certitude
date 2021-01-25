@@ -437,3 +437,29 @@ class HobbyNearest(mongo_models.Model):
 
     class Meta:
         required_db_vendor = 'insight_story'
+
+
+class NotificationBody(mongo_models.Model):
+    account_id = mongo_models.CharField(max_length=50, default='')
+    username = mongo_models.TextField(default='')
+    body = mongo_models.TextField(default='')
+    # has_seen = mongo_models.BooleanField(default=False)
+    avatar = mongo_models.TextField(default='')
+    time_stamp = mongo_models.DateTimeField(default=get_ist())
+    intent = mongo_models.TextField(default='')
+    intent_param = mongo_models.TextField(default='')
+
+    class Meta:
+        required_db_vendor = 'insight_story'
+        abstract = True
+
+
+class Notification(mongo_models.Model):
+    account_id = mongo_models.CharField(max_length=50, default='', primary_key=True)
+    notifications = mongo_models.ArrayField(model_container=NotificationBody)
+    anyNew = mongo_models.BooleanField(default=False)
+
+    objects = mongo_models.DjongoManager()
+
+    class Meta:
+        required_db_vendor = 'insight_story'

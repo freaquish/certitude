@@ -77,8 +77,8 @@ class Trends(TrendsInterface):
                                                  .values_list('hobby_score', flat=True)[:1])
             posts: QuerySet = models.Post.objects.select_related("account", "hobby").prefetch_related('views', 'loves',
                                                                                                       'shares'). \
-                filter(query[0]).annotate(**annotation).exclude(hobby_score=None)
+                filter(query[0]).annotate(**annotation).distinct().exclude(hobby_score=None)
         else:
             annotation['hobby_score'] = ExpressionWrapper(Value(0.0), output_field=DecimalField())
-            posts: QuerySet = models.Post.objects.annotate(**annotation)
+            posts: QuerySet = models.Post.objects.annotate(**annotation).distinct()
         return posts

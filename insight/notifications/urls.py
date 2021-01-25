@@ -1,6 +1,6 @@
 from django.urls import path, include
-from .views import *
+from insight.notifications.views import *
 
 urlpatterns = [
-
+    path('', NotificationView.as_view())
 ]

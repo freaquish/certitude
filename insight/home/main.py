@@ -1,6 +1,7 @@
 from insight.models import Post, Account, UserPostComment, LoveActionModel, ViewActionModel, ShareActionModel
 from insight.utils import get_ist
 from insight.workers.analyzer import Analyzer
+from insight.notifications.notifications import NotificationManager
 from enum import Enum
 
 weights = {
@@ -25,12 +26,22 @@ class PostActions:
     def __init__(self, user: Account, post: Post):
         self.user: Account = user
         self.post: Post = post
+        self.notification_manager = NotificationManager(user)
 
     def commented(self, value):
         if self.user:
             comment = UserPostComment.objects.create(
                 post_id=self.post.post_id, account=self.user, created_at=get_ist(), comment=value)
             return self.commit_action('comment', user_comment=comment)
+
+    def create_notification(self, body: str, intent: str = '', intent_param: str = ''):
+        self.notification_manager.insert_notification(self.post.account,
+            {
+                "body": body,
+                "intent": intent,
+                "intent_param": intent_param
+            }
+        )
 
     """
     Serious Improvement required, suppose user base grown to 10 million and 5 million post
@@ -43,18 +54,28 @@ class PostActions:
     The write should be in go
     """
     def commit_action(self, action, user_comment: UserPostComment = None):
+        body = ''
+        intent = 'one_post'
+        intent_param = self.post.post_id
         if action == 'viewed':
             return False
         elif action == 'comment' and user_comment:
+            # print('Using this comment api')
             self.post.comments.add(user_comment)
+            text = user_comment.comment if len(user_comment.comment) < 20 else f"{user_comment.comment[:20]}.."
+            body = f'<strong>{self.user.username}</strong> has commented <strong>{text}</strong> on your post'
         elif isinstance(self.user, Account):
-            print(action == 'un_love', 'action')
+            # print(action == 'un_love', 'action')
             if action == 'love' or action == 'un_love':
                 act = self.post.love_add(self.user.account_id)
+                body = f"<strong>{self.user.username}</strong> {'hated' if action == 'un_love' else 'loved'} your post"
             elif action == 'view':
                 act = self.post.view_add(self.user.account_id)
+                # body = f"{self.user.username} {'hated' if action == 'un_love' else 'loved'} your post"
             elif action == 'share':
                 act = self.post.share_add(self.user.account_id)
+                body = f"<strong>{self.user.username}</strong> loved it so much that he shared your post"
+        self.create_notification(body, intent_param=intent_param, intent=intent)
         return True
 
     def micro_action(self, action, val='', for_test: bool = False):

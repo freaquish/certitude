@@ -1,0 +1,2 @@
+from insight.models import *
+
