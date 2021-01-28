@@ -5,4 +5,5 @@ backup/
 insight/tests/__pycache__
 db.sqlite3
 .idea
+.vscode
 .history
